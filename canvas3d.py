@@ -1,0 +1,311 @@
+# Created by: Jacob Lewis
+
+# used to convert a 3d point to a 2d point
+import math
+import numpy as np
+
+EPS = 1.0e-4
+
+class Canvas3d:
+    def __init__(self, orientation = None):
+        """
+
+        :param orientation: Orientation is a tuple of two Point3D objects.
+        The first one is the observer origin, the second is the direction of view.
+        """
+        self.orientation = orientation
+
+    def set_orientation(self, orientation):
+        self.orientation = orientation
+
+    def get_2d_point(self, point3d):
+        factor = 0.95
+        return Point2D(point3d.x * factor**point3d.z, point3d.y * factor**point3d.z)
+
+
+class Point3D:
+    def __init__(self, x=0.0, y=0.0, z=0.0):
+        self.s_point = (x, y, z)  # original location
+        self.point = [x, y, z]
+
+    def set(self, x, y, z):
+        self.point = [x, y, z]
+
+    def orient(self, x, y, z):
+        self.s_point = (x, y, z)
+        self.point = [x, y, z]
+
+    def copy(self):
+        return Point3D(self.x, self.y, self.z)
+
+    @property
+    def x(self):
+        return self.point[0]
+
+    @property
+    def y(self):
+        return self.point[1]
+
+    @property
+    def z(self):
+        return self.point[2]
+
+    @property
+    def sx(self):
+        return self.s_point[0]
+
+    @property
+    def sy(self):
+        return self.s_point[1]
+
+    @property
+    def sz(self):
+        return self.s_point[2]
+
+    def __idiv__(self, other):
+        self.point[0] /= other
+        self.point[1] /= other
+        self.point[2] /= other
+        self.s_point = (self.point[0], self.point[1], self.point[2])
+
+    def __add__(self, other):
+        return Point3D(self.point[0] + other.point[0],
+                       self.point[1] + other.point[1],
+                       self.point[2] + other.point[2])
+
+    def __iadd__(self, other):
+        self.point[0] += other.point[0]
+        self.point[1] += other.point[1]
+        self.point[2] += other.point[2]
+        self.s_point = (self.point[0], self.point[1], self.point[2])
+
+    def __str__(self):
+        return "x: %f, y: %f, z: %f" % tuple(self.point)
+
+def translate_3d_points(points3d, translate_point3d):
+    for point3d in points3d:
+        point3d += translate_point3d
+
+
+def rotate_3d_points(points3d, rotate_point3d, around_point3d, orient=False):
+    """
+    Relative rotation (will rotate with respect to current orientation)
+    :param points3d: the points to rotate (in list form)
+    :param rotate_point3d: a Point3D object containing the rotation in 3-axis as x,y,z
+    :param around_point3d: a Point3D object containing the point at which to rotate around
+    :return:
+    """
+    c = around_point3d
+
+    for point in points3d:
+        poi = np.array((point.x - c.x, point.y - c.y, point.z - c.z))
+        poi.shape = (3, 1)
+        __spin__(point, rotate_point3d, c, poi, orient)
+
+
+def orient_3d_points(points3d, rotate_point3d, around_point3d):
+    """
+    Absolute rotation (will rotate with respect to original orientation)
+    :param points3d: the points to rotate (in list form)
+    :param rotate_point3d: a Point3D object containing the rotation in 3-axis as x,y,z
+    :param around_point3d: a Point3D object containing the point at which to rotate around
+    :return:
+    """
+    c = around_point3d
+
+    for point in points3d:
+        poi = np.array((point.sx - c.x, point.sy - c.y, point.sz - c.z))
+        poi.shape = (3, 1)
+        __spin__(point, rotate_point3d, c, poi)
+
+
+def __spin__(p, rotate_point3d, c, poi, orient=False):
+    # rotation matrix
+    # (for more info on how it works: https://en.wikipedia.org/wiki/Rotation_matrix)
+    r1 = rotate_point3d.x
+    r2 = rotate_point3d.y
+    r3 = rotate_point3d.z
+    x_r = np.array(((1, 0, 0),
+                    (0, math.cos(r1), -math.sin(r1)),
+                    (0, math.sin(r1), math.cos(r1))))
+    x_r.shape = (3, 3)
+
+    y_r = np.array(((math.cos(r2), 0, math.sin(r2)),
+                    (0, 1, 0),
+                    (-math.sin(r2), 0, math.cos(r2))))
+    y_r.shape = (3, 3)
+
+    z_r = np.array(((math.cos(r3), -math.sin(r3), 0),
+                    (math.sin(r3), math.cos(r3), 0),
+                    (0, 0, 1)))
+    z_r.shape = (3, 3)
+
+    yz_r = z_r.dot(y_r).dot(x_r)
+    fin = yz_r.dot(poi)
+
+    fin[np.abs(fin) < EPS] = 0
+
+    if orient:
+        p.orient(c.x + fin[0], c.y + fin[1], c.z + fin[2])
+    else:
+        p.set(c.x + fin[0], c.y + fin[1], c.z + fin[2])
+
+
+def get_3d_center(points3d):
+    p1 = Point3D()
+    for point in points3d:
+        p1 = p1 + point
+    p1.__idiv__(len(points3d))
+    return p1
+
+
+class Point2D:
+    def __init__(self, x=0.0, y=0.0):
+        self.point = [x, y]
+
+    @property
+    def x(self):
+        return self.point[0]
+
+    @property
+    def y(self):
+        return self.point[1]
+
+    def __idiv__(self, other):
+        self.point[0] /= other
+        self.point[1] /= other
+
+    def __add__(self, other):
+        return Point2D(self.point[0] + other.point[0],
+                       self.point[1] + other.point[1])
+
+    def __iadd__(self, other):
+        self.point[0] += other.point[0]
+        self.point[1] += other.point[1]
+
+    def __str__(self):
+        return "x: %f, y: %f" % tuple(self.point)
+
+
+def get_2d_point(point3d):
+    factor = 0.9985
+    return Point2D(point3d.x * factor ** point3d.z, point3d.y * factor ** point3d.z)
+
+
+def get_2d_points(points3d):
+    return [get_2d_point(point3d) for point3d in points3d]
+
+
+class Line3D:
+
+    def __init__(self, point3d_a, point3d_b):
+        self.a = point3d_a
+        self.b = point3d_b
+
+
+def build_ring(center3D, num_of_points, radius):
+    # There must be at least 3 points to create a ring.  Otherwise, the ring is a line or a point
+    assert num_of_points > 2
+    c = center3D
+    n = num_of_points
+    r = radius
+    step = 2 * math.pi / n
+
+    points = []
+    edges = []
+
+    for i in range(n):
+        x = c.x + math.cos(step*i) * r
+        y = c.y + math.sin(step*i) * r
+        z = c.z  # no depth
+        points.append(Point3D(x, y, z))
+        if i > 0:
+            edges.append(Line3D(points[i-1], points[i]))
+
+    # connect last line
+    edges.append(Line3D(points[-1], points[0]))
+
+    return points, edges
+
+
+def build_cylinder(base_center3D, num_of_points_w, num_of_points_h, radius, height):
+    assert num_of_points_w > 2 and num_of_points_h > 0
+    c = base_center3D
+    n1 = num_of_points_w
+    n2 = num_of_points_h
+    r = radius
+    step = height / n2
+
+    points = []
+    edges = []
+
+    for i in range(num_of_points_h):
+        p, e = build_ring(c + Point3D(0, 0, step * i), n1, r)
+        points += p
+        edges += e
+        # attach rings
+        if i > 0:
+            for k in range(num_of_points_w):
+                edges.append(Line3D(points[(i-1)*num_of_points_w+k],points[i*num_of_points_w+k]))
+
+    return points, edges
+
+
+def build_torus(center3D, num_of_points_w, num_of_points_h, radius, height):
+    assert num_of_points_w > 2 and num_of_points_h > 0
+    c = center3D
+    n1 = num_of_points_w
+    n2 = num_of_points_h
+    r = radius
+    tr = height / (2*math.pi)
+    step = 2 * math.pi / n2
+
+    points = []
+    edges = []
+
+    for i in range(num_of_points_h):
+        p, e = build_ring(c + Point3D(tr, 0, 0), n1, r)
+        rotate_3d_points(p, Point3D(0, step*i, 0), c, orient=True)
+
+        points += p
+        edges += e
+        # attach rings
+        if i > 0:
+            for k in range(num_of_points_w):
+                edges.append(Line3D(points[(i-1)*num_of_points_w+k],points[i*num_of_points_w+k]))
+                if i == num_of_points_h-1:
+                    edges.append(Line3D(points[i * num_of_points_w + k], points[k]))
+
+
+    return points, edges
+
+def build_genus2(center3D, num_of_points_w, num_of_points_h, radius, height):
+    # TODO: not complete, this is just two tori tangent to each other
+
+    tr = height / (2*math.pi)
+
+    points = []
+    edges = []
+
+    p, e = build_torus(center3D+Point3D(tr+radius, 0, 0), num_of_points_w, num_of_points_h, radius, height)
+    points += p
+    edges += e
+
+    p, e = build_torus(center3D+Point3D(-tr-radius, 0, 0), num_of_points_w, num_of_points_h, radius, height)
+    points += p
+    edges += e
+
+    return points, edges
+
+if __name__=="__main__":
+    p1 = Point3D()
+    p2 = Point3D(x=1)
+    p3 = Point3D(y=1)
+    p4 = Point3D(z=1)
+    p5 = Point3D(x=1, z=1)
+    p6 = Point3D(x=1, y=1)
+    p7 = Point3D(y=1, z=1)
+    p8 = Point3D(x=1, y=1, z=1)
+
+    can = Canvas3d()
+    print(get_2d_points((p1,p2,p3,p4,p5,p6,p7,p8)))
