@@ -6,19 +6,12 @@ import sys
 
 from PyQt5 import uic
 from PyQt5.QtCore import *
-from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-import gzip
-import numpy as np
 
-import cpps.serialization as ser
-import cpps.dcel as dcel
-import cpps.cocycles as cocycles
-import cpps.mobius as mobius
-import cpps.circle as circle
 from calculation_view import ControlCalculations
 from graphics_view import ControlGraphics
 from canvas3d import Point3D
+from openpacking import openPacking
 
 V_NUM = "0.1"
 
@@ -79,72 +72,8 @@ class Form(QMainWindow):
         print(np.linalg.norm(a))
 
     def openNew(self):
+        openPacking(self, lambda: self.mainWidget.graphics.draw())
 
-        file = QFileDialog.getOpenFileName()
-        if file[0] == None or len(file[0])<5:
-            return
-        print(len(file[0]))
-        print("Open a new file: %s" % str(file[0]))
-
-
-
-        ww = QDialog(self)
-        ww.exec_()
-
-        meta, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
-
-
-        def commutator(a, b):
-            return a.dot(b).dot(mobius.sl2inv(a)).dot(mobius.sl2inv(b))
-
-        def conjugate(inner, outer):
-            return mobius.sl2inv(outer).dot(inner).dot(outer)
-
-        recip = np.array([[0, 1j], [1j, 0]])
-
-
-        print('Computing circle positions...')
-
-        echains = dcel.edge_chain_dfs(D, chains['t1'][0])
-        vchains = set()
-        vert_seen = set()
-        for ch in echains:
-            if ch[-1].src not in vert_seen:
-                vert_seen.add(ch[-1].src)
-                vchains.add(ch)
-        c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
-        dev_chains = set()  # Will store (chain,holonomy word) pairs for general pictures later
-        for ch in vchains:
-            h = D.hol(ch, P['750.0'])
-            c = c0.transform_gl2(h)
-            if not c.contains_infinity and c.radius > .005:
-                dev_chains.add(ch)
-
-        def show_fund(DD, edge_chains, X):
-            rho0 = {k: DD.hol(edge_chains[k], X) for k in ['a1', 'a2', 'b1', 'b2']}
-            rho = {'a1': rho0['a1'],
-                   'b1': rho0['b1'],
-                   'a2': conjugate(rho0['a2'], rho0['b2']),
-                   'b2': rho0['b2']}
-            fc = mobius.fix(commutator(rho['a1'], rho['b1']))
-            fa1 = mobius.fix(rho['a1'])
-            fa2 = mobius.fix(rho['a2'])
-            mnorm = mobius.center_four_points(fc[0], fa1[0], fc[1], fa2[0])
-            mnorm = recip.dot(mnorm)
-            output_circles = []
-            for ch in dev_chains:
-                h = DD.hol(ch, X)
-                c = c0.transform_gl2(h).transform_sl2(mnorm)
-                if c.radius > .005:
-                    output_circles.append(c)
-                    print('Generated %d circles' % len(output_circles))
-                    self.mainWidget.circles = output_circles
-
-        show_fund(D, chains, P['750.0'])
-        # for c in self.mainWidget.circles:
-        #     c.transform_sl2(((0.0001,0),
-        #                      (0,1)))
-        self.mainWidget.graphics.draw()
 
     def resizeEvent(self, QResizeEvent):
         print("width %d, height %d" % (self.width(), self.height()))
