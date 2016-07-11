@@ -23,12 +23,20 @@ class ControlCalculations(QObject):
         self.bind_btn(delegate.testbtn2)
         self.bind_btn(delegate.testbtn3)
         self.bind_btn(delegate.testbtn4)
+        self.bind_btn(delegate.bigger_cir)
         delegate.amountSlider.valueChanged.connect(lambda: self.adjustCircles(int(delegate.amountSlider.value())))
         delegate.xrot.valueChanged.connect(lambda: self.adjustShape())
         delegate.yrot.valueChanged.connect(lambda: self.adjustShape())
         delegate.zrot.valueChanged.connect(lambda: self.adjustShape())
+        delegate.bigger_cir_slider.valueChanged.connect(lambda: self.slide_test_circle())
         self.adjustCircles(9)
 
+
+    def slide_test_circle(self):
+        d = self.delegate
+        d.testRad[0] = int(d.bigger_cir_slider.value())
+        d.circle_rad.setText("Circle Radius: %d" % d.testRad[0])
+        d.graphics.draw()
 
     def bind_btn(self, btn):
         btn.clicked.connect(lambda: self.btn_clicked(btn))
@@ -63,6 +71,12 @@ class ControlCalculations(QObject):
             self.animate_all(T)
         elif btn == d.testbtn4:
             self.animate_all(np.linalg.inv(T))
+
+        elif btn == d.bigger_cir:
+            d.testRad[0] = d.testRad[0]**2
+            d.circle_rad.setText("Circle Radius: %d" % d.testRad[0])
+            d.graphics.draw()
+
 
     """
     The following methods apply either an transformation adjustment or animation

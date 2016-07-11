@@ -32,6 +32,12 @@ class MyScene(QWidget):
 
         d = self.delegate
 
+        if d.testRad is not None:
+            qp.drawEllipse(self.center[0],
+                           self.center[1] - d.testRad[0],
+                           d.testRad[0] * 2,
+                           d.testRad[0] * 2)
+
         # d.scene.clear()
         # draw circles
 
@@ -116,6 +122,7 @@ class ControlGraphics:
         # gv.addWidget()
         self.delegate.points = []
         self.delegate.lines = []
+        self.delegate.testRad = [2]
         """
         Uncomment the following to draw:
         """

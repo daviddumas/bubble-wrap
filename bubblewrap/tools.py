@@ -16,11 +16,7 @@ def showListDialog(parent, ordered_dictionary):
         print(item.text())
         model.appendRow(item)
 
-    # qmi = QModelIndex()
-    # qmi.row()
     response = [-1]
-
-
 
     dialog = QDialog(parent)
     uic.loadUi("ui/list_dialog.ui", dialog)
