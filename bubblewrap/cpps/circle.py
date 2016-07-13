@@ -5,7 +5,7 @@
 import numpy as np
 from .mobius import sl2inv
 
-_LINE_EPS = 5e-8
+_LINE_EPS = 1e-8
 
 class Circle:
     def __init__(self,m):

@@ -1,6 +1,7 @@
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from widgets import *
 import cpps.triangulations as triangulations
 from math import sqrt, sin, cos
 from canvas3d import Point3D, get_2d_points, translate_3d_points, Line3D, rotate_3d_points, build_ring, build_cylinder, build_torus, build_genus2
@@ -10,6 +11,10 @@ class MyScene(QWidget):
     def __init__(self, delegate, parent=None):
         super().__init__(parent)
         self.delegate = delegate
+
+        self.dpad = TranslateWidget()
+        self.izoom = PlusWidget()
+        self.ozoom = MinusWidget()
 
     @property
     def width(self):
@@ -25,6 +30,7 @@ class MyScene(QWidget):
 
     def paintEvent(self, QPaintEvent):
         qp = QPainter(self)
+        qp.setRenderHint(QPainter.Antialiasing)
 
         qp.fillRect(QRect(0, 0, self.width, self.height), QColor(250, 250, 250, 255))
         qp.setPen(Qt.black)
@@ -32,14 +38,15 @@ class MyScene(QWidget):
 
         d = self.delegate
 
-        if d.testRad is not None:
-            qp.drawEllipse(self.center[0],
-                           self.center[1] - d.testRad[0],
-                           d.testRad[0] * 2,
-                           d.testRad[0] * 2)
+        # if d.testRad is not None:
+        #     qp.drawEllipse(self.center[0],
+        #                    self.center[1] - d.testRad[0],
+        #                    d.testRad[0] * 2,
+        #                    d.testRad[0] * 2)
 
         # d.scene.clear()
         # draw circles
+
 
         for p in get_2d_points(d.points):
             qp.drawEllipse(self.center[0] + p.x-2,
@@ -78,7 +85,32 @@ class MyScene(QWidget):
                 qp.drawLine(x - size*cos(cir.line_angle), y - size*sin(cir.line_angle), x + size*cos(cir.line_angle), y + size*sin(cir.line_angle))
                 print(cir.line_base, cir.line_angle)
 
+        self.dpad.setPos(self.width-70, 20)
+        self.dpad.draw(qp)
+        self.izoom.setPos(self.width-55, 80)
+        self.izoom.draw(qp)
+        self.ozoom.setPos(self.width-55, 105)
+        self.ozoom.draw(qp)
+
         qp.end()
+
+    def mousePressEvent(self, mouse):
+        d = self.delegate
+
+        T = None
+        if self.izoom.isHit(mouse):
+            # zoom in
+            T = ((1.6, 0),
+                 (0, 0.625))
+        elif self.ozoom.isHit(mouse):
+            # zoom out
+            T = ((0.625, 0),
+                 (0, 1.6))
+
+        if T is not None:
+            d.calculations.animate_all(T)
+
+
 
 def drawHouse(d):
     p1 = Point3D()  #
