@@ -94,6 +94,12 @@ class MyScene(QWidget):
 
         qp.end()
 
+    def mouseReleaseEvent(self, QMouseEvent):
+        self.izoom.release()
+        self.ozoom.release()
+        self.dpad.release()
+        self.delegate.graphics.draw()
+
     def mousePressEvent(self, mouse):
         d = self.delegate
 
@@ -107,8 +113,24 @@ class MyScene(QWidget):
             T = ((0.625, 0),
                  (0, 1.6))
 
+        trans = self.dpad.isHit(mouse)
+
+        if trans == 1:
+            T = ((1, 0.5),
+                 (0, 1))
+        elif trans == 2:
+            T = ((1, -0.5j),
+                 (0, 1))
+        elif trans == 3:
+            T = ((1, -0.5),
+                 (0, 1))
+        elif trans == 4:
+            T = ((1, 0.5j),
+                 (0, 1))
+
         if T is not None:
             d.calculations.animate_all(T)
+
 
 
 

@@ -90,7 +90,7 @@ class ControlCalculations(QObject):
     def animate_all(self, transformation):
         # Create a new Animation Thread.  The new thread will insure our UI does not freeze.
         # The Animation Thread time is in milliseconds
-        th = AnimationThread(self, self.delegate.circles, transformation, 1000, 0, len(self.delegate.circles), self.delegate.points)
+        th = AnimationThread(self, self.delegate.circles, transformation, 500, 0, len(self.delegate.circles), self.delegate.points)
         th.start()
         # th2 = AnimationThread(self, self.delegate.circles, transformation, 1000, len(self.delegate.circles) // 2,
         #                       len(self.delegate.circles))
