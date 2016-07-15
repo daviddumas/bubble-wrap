@@ -46,7 +46,7 @@ class ControlCalculations(QObject):
         self.delegate.graphics.draw()
 
     def adjustShape(self):
-        orient_3d_points(self.delegate.points, Point3D(float(self.delegate.xrot.value())/100,
+        orient_3d_points(self.delegate.m_dcel.points, Point3D(float(self.delegate.xrot.value())/100,
                                                        float(self.delegate.yrot.value())/100,
                                                        float(self.delegate.zrot.value())/100), around_point3d=Point3D(0,0,0))
         self.delegate.graphics.draw()

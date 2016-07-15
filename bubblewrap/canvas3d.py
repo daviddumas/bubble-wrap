@@ -2,27 +2,43 @@
 
 # used to convert a 3d point to a 2d point
 from cpps.dcel import IndexedDCEL
+import cpps.dcel as dcel
+import cpps.triangulations as triangulations
 import math
 from math import sin, cos
 import numpy as np
 
 EPS = 1.0e-8
 
+class VisualDCELException(Exception):
+    pass
+
 class VisualDCEL(IndexedDCEL):
     CYLINDER = 0
     TORUS = 1
     GENUS2 = 2
-    def __init__(self, *__args):
+    def __init__(self, type, w, h, *__args):
         """
-        :__args:(type, width, height)
+        (type, width, height, __args: stop)
         """
+        data = ()
 
-        if len(__args) == 3 and isinstance(__args[0],int):
-            if __args[0] == self.CYLINDER:
-                data = build_cylinder(Point3D(), __args[1], __args[2])
-            elif __args[0] == self.TORUS:
-                data = build_torus(Point3D(), __args[1], __args[2])
-        super().__init__(D)
+        if isinstance(type, int):
+            if type == self.CYLINDER:
+                data = build_cylinder(Point3D(), w, h)
+            elif type == self.TORUS:
+                data = build_torus(Point3D(), w, h, __args[0] if len(__args) > 0 else None)
+            elif type == self.GENUS2:
+                data = build_genus2(Point3D(), w, h)
+            else:
+                raise VisualDCELException(str("Invalid DCEL type"))
+
+        self.points = data[0]
+        self.edges = data[1]
+        self.e1 = data[3]
+        self.e2 = data[4] if len(data) > 4 else None
+
+        super().__init__(data[2])
 
 
 class Point3D:
@@ -242,22 +258,16 @@ def build_cylinder(base_center3D, w, h):
                 if k != 0:
                     edges.append(Line3D(points[(i-1)*w+k-1], points[i*w+k]))
 
-    return points, edges
+    # build dcel
+    mD, t1, b1 = triangulations.cylinder(w, h)
 
-# mD1,t1,b1 = triangulations.cylinder(5,5)
-# t1stop = t1.boundary_forward(1)
-# dcel.glue_boundary(mD1,t1,b1,t1stop)
-#
-# mD2,t2,b2 = triangulations.cylinder(5,5)
-# t2stop = t2.boundary_forward(1)
-# dcel.glue_boundary(mD2,t2,b2,t2stop)
-#
-# dcel.reverse_orientation(mD2)
-# mD = mD1 | mD2
-# dcel.glue_boundary(mD,t1stop,t2stop)
+    # return:
+    # graphics (points, edges)
+    # DCEL (mD, t1: top starting edge, b1: bottom starting edge)
+    return points, edges, mD, t1, b1
 
 
-def build_torus(center3D, w, h):
+def build_torus(center3D, w, h, stop=None):
     assert w > 2 and h > 0
     c = center3D
     n1 = w
@@ -292,8 +302,19 @@ def build_torus(center3D, w, h):
                     if k != 0:
                         edges.append(Line3D(points[i * w + k - 1], points[k]))
 
+    # Build dcel
+    mD, t1, b1 = triangulations.cylinder(w, h)
 
-    return points, edges
+    if stop is None:
+        dcel.glue_boundary(mD, t1, b1)
+    else:
+        t1stop = t1.boundary_forward(stop)
+        dcel.glue_boundary(mD,t1,b1,t1stop)
+
+    # return:
+    # graphics (points, edges)
+    # DCEL (mD, t1: starting edge)
+    return points, edges, mD, t1
 
 def build_genus2(center3D, w, h):
     # TODO: not complete, this is just two tori tangent to each other
@@ -303,13 +324,17 @@ def build_genus2(center3D, w, h):
     points = []
     edges = []
 
-    p, e = build_torus(center3D+Point3D(tr+w, 0, 0), w, h)
+    p, e, mD1, t1 = build_torus(center3D+Point3D(tr+w, 0, 0), w, h, stop=1)
     points += p
     edges += e
 
-    p, e = build_torus(center3D+Point3D(-tr-w, 0, 0), w, h)
+    p, e, mD2, t2 = build_torus(center3D+Point3D(-tr-w, 0, 0), w, h, stop=1)
     points += p
     edges += e
+
+    # dcel.reverse_orientation(mD2)
+    # mD = mD1 | mD2
+    # dcel.glue_boundary(mD,t1stop,t2stop)
 
     return points, edges
 

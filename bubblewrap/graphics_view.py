@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import *
 from widgets import *
 import cpps.triangulations as triangulations
 from math import sqrt, sin, cos
-from canvas3d import Point3D, get_2d_points, translate_3d_points, Line3D, rotate_3d_points, build_ring, build_cylinder, build_torus, build_genus2
+from canvas3d import Point3D, get_2d_points, translate_3d_points, Line3D, rotate_3d_points, VisualDCEL
 
 
 class MyScene(QWidget):
@@ -49,11 +49,11 @@ class MyScene(QWidget):
 
         if d.currentView == 1:
             scale = 10
-            for p in get_2d_points(d.points):
+            for p in get_2d_points(d.m_dcel.points):
                 qp.drawEllipse(self.center[0] + scale*p.x-2,
                                self.center[1] + scale*p.y-2,
                                4, 4)
-            for lns in d.lines:
+            for lns in d.m_dcel.edges:
                 ps = get_2d_points([lns.a, lns.b])
                 qp.drawLine(self.center[0] + scale*ps[0].x, self.center[1] + scale*ps[0].y, self.center[0] + scale*ps[1].x, self.center[1] + scale*ps[1].y)
         else:
@@ -183,7 +183,7 @@ class ControlGraphics:
         """
         #drawHouse(self.delegate)
         #self.delegate.points, self.delegate.lines = build_cylinder(Point3D(0,0,-5), w=10, h=10)
-        self.delegate.points, self.delegate.lines = build_torus(center3D=Point3D(0,0,0), w=10, h=10)
+        self.delegate.m_dcel = VisualDCEL(VisualDCEL.TORUS, 10, 10)
         #self.delegate.points, self.delegate.lines = build_genus2(Point3D(0,0,0), w=16, h=16)
 
         #D, t, b = triangulations.cylinder(5, 5)
