@@ -182,10 +182,9 @@ class ControlGraphics:
         Uncomment the following to draw:
         """
         #drawHouse(self.delegate)
-        #self.delegate.points, self.delegate.lines = build_ring(Point3D(0,0,0), num_of_points=20, radius=50)
         #self.delegate.points, self.delegate.lines = build_cylinder(Point3D(0,0,-5), w=10, h=10)
-        self.delegate.points, self.delegate.lines = build_torus(center3D=Point3D(0,0,0), w=15, h=15)
-        #self.delegate.points, self.delegate.lines = build_genus2(Point3D(0,0,0), num_of_points_w=16, num_of_points_h=16, radius=100, height=1200)
+        self.delegate.points, self.delegate.lines = build_torus(center3D=Point3D(0,0,0), w=10, h=10)
+        #self.delegate.points, self.delegate.lines = build_genus2(Point3D(0,0,0), w=16, h=16)
 
         #D, t, b = triangulations.cylinder(5, 5)
 

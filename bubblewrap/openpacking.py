@@ -19,18 +19,21 @@ def openPacking(parent, ondone):
 
     meta, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
 
+    # SHOW DIALOG
     if isinstance(P, list):
         tempP = P.copy()
         P={}
         for i in range(len(tempP)):
             P[str("Packing %d"%i)] = tempP[i]
 
-    odict = OrderedDict.fromkeys(P)
+    odict = OrderedDict.fromkeys(sorted(P, key=lambda x: float(x)))
+
     mkey = showListDialog(parent, odict)
     if isinstance(mkey, int) and mkey == -1:
         return
     X0 = P[mkey]
 
+    # SOLVE
     rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'a2', 'b1', 'b2']}
 
     def commutator(a, b):

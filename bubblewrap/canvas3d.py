@@ -295,19 +295,19 @@ def build_torus(center3D, w, h):
 
     return points, edges
 
-def build_genus2(center3D, num_of_points_w, num_of_points_h):
+def build_genus2(center3D, w, h):
     # TODO: not complete, this is just two tori tangent to each other
 
-    tr = num_of_points_h / (2*math.pi)
+    tr = h / (2*math.pi)
 
     points = []
     edges = []
 
-    p, e = build_torus(center3D+Point3D(tr+num_of_points_w, 0, 0), num_of_points_w, num_of_points_h)
+    p, e = build_torus(center3D+Point3D(tr+w, 0, 0), w, h)
     points += p
     edges += e
 
-    p, e = build_torus(center3D+Point3D(-tr-num_of_points_w, 0, 0), num_of_points_w, num_of_points_h)
+    p, e = build_torus(center3D+Point3D(-tr-w, 0, 0), w, h)
     points += p
     edges += e
 
