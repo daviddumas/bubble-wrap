@@ -47,43 +47,43 @@ class MyScene(QWidget):
         # d.scene.clear()
         # draw circles
 
+        if d.currentView == 1:
+            for p in get_2d_points(d.points):
+                qp.drawEllipse(self.center[0] + p.x-2,
+                               self.center[1] + p.y-2,
+                               4, 4)
+            for lns in d.lines:
+                ps = get_2d_points([lns.a, lns.b])
+                qp.drawLine(self.center[0] + ps[0].x, self.center[1] + ps[0].y, self.center[0] + ps[1].x, self.center[1] + ps[1].y)
+        else:
+            for i in range(len(d.circles)):
+                cir = d.circles[i]
+                if not cir.contains_infinity:
+                    #add ellipses to an array for optimization
+                    if abs(cir.radius)>0.3:
+                        qp.setPen(Qt.magenta)
+                    elif abs(cir.radius)>0.2:
+                        qp.setPen(Qt.darkBlue)
+                    elif abs(cir.radius)>0.1:
+                        qp.setPen(Qt.darkGreen)
+                    elif abs(cir.radius)>0.05:
+                        qp.setPen(Qt.red)
+                    else:
+                        qp.setPen(Qt.black)
 
-        for p in get_2d_points(d.points):
-            qp.drawEllipse(self.center[0] + p.x-2,
-                           self.center[1] + p.y-2,
-                           4, 4)
-        for lns in d.lines:
-            ps = get_2d_points([lns.a, lns.b])
-            qp.drawLine(self.center[0] + ps[0].x, self.center[1] + ps[0].y, self.center[0] + ps[1].x, self.center[1] + ps[1].y)
-
-        for i in range(len(d.circles)):
-            cir = d.circles[i]
-            if not cir.contains_infinity:
-                #add ellipses to an array for optimization
-                if abs(cir.radius)>0.3:
-                    qp.setPen(Qt.magenta)
-                elif abs(cir.radius)>0.2:
-                    qp.setPen(Qt.darkBlue)
-                elif abs(cir.radius)>0.1:
-                    qp.setPen(Qt.darkGreen)
-                elif abs(cir.radius)>0.05:
-                    qp.setPen(Qt.red)
+                    qp.drawEllipse(self.center[0] + 200*(cir.center.real-cir.radius),
+                                   self.center[1] + 200*(cir.center.imag-cir.radius),
+                                   200 * (cir.radius*2), 200*(cir.radius*2))
                 else:
-                    qp.setPen(Qt.black)
-
-                qp.drawEllipse(self.center[0] + 200*(cir.center.real-cir.radius),
-                               self.center[1] + 200*(cir.center.imag-cir.radius),
-                               200 * (cir.radius*2), 200*(cir.radius*2))
-            else:
-                # creates a straight line
-                x = self.center[0] + cir.line_base.real
-                y = self.center[1] + cir.line_base.imag
-                size = sqrt(cir.line_base.real**2 + cir.line_base.imag**2)
-                scrSizeAvg = (self.width+self.height)/2
-                size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
-                # Draw the line out from the line_base in either direction
-                qp.drawLine(x - size*cos(cir.line_angle), y - size*sin(cir.line_angle), x + size*cos(cir.line_angle), y + size*sin(cir.line_angle))
-                print(cir.line_base, cir.line_angle)
+                    # creates a straight line
+                    x = self.center[0] + cir.line_base.real
+                    y = self.center[1] + cir.line_base.imag
+                    size = sqrt(cir.line_base.real**2 + cir.line_base.imag**2)
+                    scrSizeAvg = (self.width+self.height)/2
+                    size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
+                    # Draw the line out from the line_base in either direction
+                    qp.drawLine(x - size*cos(cir.line_angle), y - size*sin(cir.line_angle), x + size*cos(cir.line_angle), y + size*sin(cir.line_angle))
+                    print(cir.line_base, cir.line_angle)
 
         self.dpad.setPos(self.width-70, 20)
         self.dpad.draw(qp)
@@ -183,7 +183,7 @@ class ControlGraphics:
         #drawHouse(self.delegate)
         #self.delegate.points, self.delegate.lines = build_ring(Point3D(0,0,0), num_of_points=20, radius=50)
         #self.delegate.points, self.delegate.lines = build_cylinder(Point3D(0,0,-250), num_of_points_w=20, num_of_points_h=10, radius=50, height=500)
-        #self.delegate.points, self.delegate.lines = build_torus(center3D=Point3D(0,0,0), num_of_points_w=15, num_of_points_h=15, radius=100, height=1200)
+        self.delegate.points, self.delegate.lines = build_torus(center3D=Point3D(0,0,0), num_of_points_w=15, num_of_points_h=15)
         #self.delegate.points, self.delegate.lines = build_genus2(Point3D(0,0,0), num_of_points_w=16, num_of_points_h=16, radius=100, height=1200)
 
         #D, t, b = triangulations.cylinder(5, 5)

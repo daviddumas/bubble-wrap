@@ -1,26 +1,27 @@
 # Created by: Jacob Lewis
 
 # used to convert a 3d point to a 2d point
+from cpps.dcel import IndexedDCEL
 import math
 import numpy as np
 
-EPS = 1.0e-4
+EPS = 1.0e-8
 
-class Canvas3d:
-    def __init__(self, orientation = None):
+class VisualDCEL(IndexedDCEL):
+    CYLINDER = 0
+    TORUS = 1
+    GENUS2 = 2
+    def __init__(self, *__args):
+        """
+        :__args:(type, width, height)
         """
 
-        :param orientation: Orientation is a tuple of two Point3D objects.
-        The first one is the observer origin, the second is the direction of view.
-        """
-        self.orientation = orientation
-
-    def set_orientation(self, orientation):
-        self.orientation = orientation
-
-    def get_2d_point(self, point3d):
-        factor = 0.95
-        return Point2D(point3d.x * factor**point3d.z, point3d.y * factor**point3d.z)
+        if len(__args) == 3 and isinstance(__args[0],int):
+            if __args[0] == self.CYLINDER:
+                data = build_cylinder(Point3D(), __args[1], __args[2])
+            elif __args[0] == self.TORUS:
+                data = build_torus(Point3D(), __args[1], __args[2])
+        super().__init__(D)
 
 
 class Point3D:
@@ -228,18 +229,18 @@ def build_ring(center3D, num_of_points, radius):
     return points, edges
 
 
-def build_cylinder(base_center3D, num_of_points_w, num_of_points_h, radius, height):
+def build_cylinder(base_center3D, num_of_points_w, num_of_points_h):
     assert num_of_points_w > 2 and num_of_points_h > 0
     c = base_center3D
     n1 = num_of_points_w
     n2 = num_of_points_h
-    r = radius
-    step = height / n2
+    r = num_of_points_w
+    step = 1
 
     points = []
     edges = []
 
-    for i in range(num_of_points_h):
+    for i in range(n2):
         p, e = build_ring(c + Point3D(0, 0, step * i), n1, r)
         points += p
         edges += e
@@ -250,14 +251,26 @@ def build_cylinder(base_center3D, num_of_points_w, num_of_points_h, radius, heig
 
     return points, edges
 
+# mD1,t1,b1 = triangulations.cylinder(5,5)
+# t1stop = t1.boundary_forward(1)
+# dcel.glue_boundary(mD1,t1,b1,t1stop)
+#
+# mD2,t2,b2 = triangulations.cylinder(5,5)
+# t2stop = t2.boundary_forward(1)
+# dcel.glue_boundary(mD2,t2,b2,t2stop)
+#
+# dcel.reverse_orientation(mD2)
+# mD = mD1 | mD2
+# dcel.glue_boundary(mD,t1stop,t2stop)
 
-def build_torus(center3D, num_of_points_w, num_of_points_h, radius, height):
+
+def build_torus(center3D, num_of_points_w, num_of_points_h):
     assert num_of_points_w > 2 and num_of_points_h > 0
     c = center3D
     n1 = num_of_points_w
     n2 = num_of_points_h
-    r = radius
-    tr = height / (2*math.pi)
+    r = n1
+    tr = n2 / (2*math.pi)
     step = 2 * math.pi / n2
 
     points = []
@@ -279,19 +292,19 @@ def build_torus(center3D, num_of_points_w, num_of_points_h, radius, height):
 
     return points, edges
 
-def build_genus2(center3D, num_of_points_w, num_of_points_h, radius, height):
+def build_genus2(center3D, num_of_points_w, num_of_points_h):
     # TODO: not complete, this is just two tori tangent to each other
 
-    tr = height / (2*math.pi)
+    tr = num_of_points_h / (2*math.pi)
 
     points = []
     edges = []
 
-    p, e = build_torus(center3D+Point3D(tr+radius, 0, 0), num_of_points_w, num_of_points_h, radius, height)
+    p, e = build_torus(center3D+Point3D(tr+num_of_points_w, 0, 0), num_of_points_w, num_of_points_h)
     points += p
     edges += e
 
-    p, e = build_torus(center3D+Point3D(-tr-radius, 0, 0), num_of_points_w, num_of_points_h, radius, height)
+    p, e = build_torus(center3D+Point3D(-tr-num_of_points_w, 0, 0), num_of_points_w, num_of_points_h)
     points += p
     edges += e
 
@@ -307,5 +320,4 @@ if __name__=="__main__":
     p7 = Point3D(y=1, z=1)
     p8 = Point3D(x=1, y=1, z=1)
 
-    can = Canvas3d()
     print(get_2d_points((p1,p2,p3,p4,p5,p6,p7,p8)))

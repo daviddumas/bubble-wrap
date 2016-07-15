@@ -57,6 +57,7 @@ class Form(QMainWindow):
 
         # Bind Data Structures
         self.mainWidget.circles = []
+        self.mainWidget.currentView = 0
         # Old circles
         # self.circles = [c.from_center_radius(0 + 0j, 50), c.from_center_radius(100 + 0j, 50),
         #                   c.from_center_radius(-100 + 0j, 50), c.from_center_radius(0+100j, 50),
