@@ -48,13 +48,14 @@ class MyScene(QWidget):
         # draw circles
 
         if d.currentView == 1:
+            scale = 10
             for p in get_2d_points(d.points):
-                qp.drawEllipse(self.center[0] + p.x-2,
-                               self.center[1] + p.y-2,
+                qp.drawEllipse(self.center[0] + scale*p.x-2,
+                               self.center[1] + scale*p.y-2,
                                4, 4)
             for lns in d.lines:
                 ps = get_2d_points([lns.a, lns.b])
-                qp.drawLine(self.center[0] + ps[0].x, self.center[1] + ps[0].y, self.center[0] + ps[1].x, self.center[1] + ps[1].y)
+                qp.drawLine(self.center[0] + scale*ps[0].x, self.center[1] + scale*ps[0].y, self.center[0] + scale*ps[1].x, self.center[1] + scale*ps[1].y)
         else:
             for i in range(len(d.circles)):
                 cir = d.circles[i]
@@ -182,8 +183,8 @@ class ControlGraphics:
         """
         #drawHouse(self.delegate)
         #self.delegate.points, self.delegate.lines = build_ring(Point3D(0,0,0), num_of_points=20, radius=50)
-        #self.delegate.points, self.delegate.lines = build_cylinder(Point3D(0,0,-250), num_of_points_w=20, num_of_points_h=10, radius=50, height=500)
-        self.delegate.points, self.delegate.lines = build_torus(center3D=Point3D(0,0,0), num_of_points_w=15, num_of_points_h=15)
+        #self.delegate.points, self.delegate.lines = build_cylinder(Point3D(0,0,-5), w=10, h=10)
+        self.delegate.points, self.delegate.lines = build_torus(center3D=Point3D(0,0,0), w=15, h=15)
         #self.delegate.points, self.delegate.lines = build_genus2(Point3D(0,0,0), num_of_points_w=16, num_of_points_h=16, radius=100, height=1200)
 
         #D, t, b = triangulations.cylinder(5, 5)

@@ -3,6 +3,7 @@
 # used to convert a 3d point to a 2d point
 from cpps.dcel import IndexedDCEL
 import math
+from math import sin, cos
 import numpy as np
 
 EPS = 1.0e-8
@@ -26,15 +27,20 @@ class VisualDCEL(IndexedDCEL):
 
 class Point3D:
     def __init__(self, x=0.0, y=0.0, z=0.0):
-        self.s_point = (x, y, z)  # original location
-        self.point = [x, y, z]
+        self.s_point = np.array((x, y, z))  # original location
+        self.s_point.shape = (3, 1)
+        self.point = np.array((x, y, z))  # transformed location
+        self.point.shape = (3, 1)
 
-    def set(self, x, y, z):
-        self.point = [x, y, z]
+    def update(self, x, y, z):
+        self.point = np.array((x, y, z))  # transformed location
+        self.point.shape = (3, 1)
 
-    def orient(self, x, y, z):
-        self.s_point = (x, y, z)
-        self.point = [x, y, z]
+    def place(self, x, y, z):
+        self.s_point = np.array((x, y, z))  # original location
+        self.s_point.shape = (3, 1)
+        self.point = np.array((x, y, z))  # transformed location
+        self.point.shape = (3, 1)
 
     def copy(self):
         return Point3D(self.x, self.y, self.z)
@@ -64,10 +70,7 @@ class Point3D:
         return self.s_point[2]
 
     def __idiv__(self, other):
-        self.point[0] /= other
-        self.point[1] /= other
-        self.point[2] /= other
-        self.s_point = (self.point[0], self.point[1], self.point[2])
+        self.point /= other
 
     def __add__(self, other):
         return Point3D(self.point[0] + other.point[0],
@@ -75,13 +78,10 @@ class Point3D:
                        self.point[2] + other.point[2])
 
     def __iadd__(self, other):
-        self.point[0] += other.point[0]
-        self.point[1] += other.point[1]
-        self.point[2] += other.point[2]
-        self.s_point = (self.point[0], self.point[1], self.point[2])
+        self.point += other.point
 
     def __str__(self):
-        return "x: %f, y: %f, z: %f" % tuple(self.point)
+        return "x: %f, y: %f, z: %f" % (self.point[0], self.point[1], self.point[2])
 
 def translate_3d_points(points3d, translate_point3d):
     for point3d in points3d:
@@ -126,30 +126,19 @@ def __spin__(p, rotate_point3d, c, poi, orient=False):
     r1 = rotate_point3d.x
     r2 = rotate_point3d.y
     r3 = rotate_point3d.z
-    x_r = np.array(((1, 0, 0),
-                    (0, math.cos(r1), -math.sin(r1)),
-                    (0, math.sin(r1), math.cos(r1))))
-    x_r.shape = (3, 3)
 
-    y_r = np.array(((math.cos(r2), 0, math.sin(r2)),
-                    (0, 1, 0),
-                    (-math.sin(r2), 0, math.cos(r2))))
-    y_r.shape = (3, 3)
-
-    z_r = np.array(((math.cos(r3), -math.sin(r3), 0),
-                    (math.sin(r3), math.cos(r3), 0),
-                    (0, 0, 1)))
-    z_r.shape = (3, 3)
-
-    yz_r = z_r.dot(y_r).dot(x_r)
-    fin = yz_r.dot(poi)
+    # Rotation Matrix
+    xyz_r = np.array(((cos(r3)*cos(r2), -sin(r3)*cos(r1)+sin(r1)*sin(r2)*cos(r3),   sin(r1)*sin(r3)+cos(r1)*sin(r2)*cos(r3)),
+                    (cos(r2)*sin(r3),   cos(r1)*cos(r3)+sin(r1)*sin(r2)*sin(r3),    -sin(r1)*cos(r3)+cos(r1)*sin(r2)*sin(r3)),
+                    (-sin(r2),          sin(r1)*cos(r2),                            cos(r1)*cos(r2))))
+    fin = xyz_r.dot(poi)
 
     fin[np.abs(fin) < EPS] = 0
 
     if orient:
-        p.orient(c.x + fin[0], c.y + fin[1], c.z + fin[2])
+        p.place(c.x + fin[0], c.y + fin[1], c.z + fin[2])
     else:
-        p.set(c.x + fin[0], c.y + fin[1], c.z + fin[2])
+        p.update(c.x + fin[0], c.y + fin[1], c.z + fin[2])
 
 
 def get_3d_center(points3d):
@@ -229,13 +218,13 @@ def build_ring(center3D, num_of_points, radius):
     return points, edges
 
 
-def build_cylinder(base_center3D, num_of_points_w, num_of_points_h):
-    assert num_of_points_w > 2 and num_of_points_h > 0
+def build_cylinder(base_center3D, w, h):
+    assert w > 2 and h > 0
     c = base_center3D
-    n1 = num_of_points_w
-    n2 = num_of_points_h
-    r = num_of_points_w
-    step = 1
+    n1 = w
+    n2 = h
+    r = w/2
+    step = 2
 
     points = []
     edges = []
@@ -246,8 +235,12 @@ def build_cylinder(base_center3D, num_of_points_w, num_of_points_h):
         edges += e
         # attach rings
         if i > 0:
-            for k in range(num_of_points_w):
-                edges.append(Line3D(points[(i-1)*num_of_points_w+k],points[i*num_of_points_w+k]))
+            for k in range(w):
+                edges.append(Line3D(points[(i-1)*w+k], points[i*w+k]))
+                if k == w-1:
+                    edges.append(Line3D(points[(i - 1) * w + k], points[i * w]))
+                if k != 0:
+                    edges.append(Line3D(points[(i-1)*w+k-1], points[i*w+k]))
 
     return points, edges
 
@@ -264,19 +257,19 @@ def build_cylinder(base_center3D, num_of_points_w, num_of_points_h):
 # dcel.glue_boundary(mD,t1stop,t2stop)
 
 
-def build_torus(center3D, num_of_points_w, num_of_points_h):
-    assert num_of_points_w > 2 and num_of_points_h > 0
+def build_torus(center3D, w, h):
+    assert w > 2 and h > 0
     c = center3D
-    n1 = num_of_points_w
-    n2 = num_of_points_h
-    r = n1
-    tr = n2 / (2*math.pi)
+    n1 = w
+    n2 = h
+    r = w/2
+    tr = 10*n2 / (2*math.pi)
     step = 2 * math.pi / n2
 
     points = []
     edges = []
 
-    for i in range(num_of_points_h):
+    for i in range(h):
         p, e = build_ring(c + Point3D(tr, 0, 0), n1, r)
         rotate_3d_points(p, Point3D(0, step*i, 0), c, orient=True)
 
@@ -284,10 +277,20 @@ def build_torus(center3D, num_of_points_w, num_of_points_h):
         edges += e
         # attach rings
         if i > 0:
-            for k in range(num_of_points_w):
-                edges.append(Line3D(points[(i-1)*num_of_points_w+k],points[i*num_of_points_w+k]))
-                if i == num_of_points_h-1:
-                    edges.append(Line3D(points[i * num_of_points_w + k], points[k]))
+            for k in range(w):
+                edges.append(Line3D(points[(i-1)*w+k],points[i*w+k]))
+                if k == w-1:
+                    edges.append(Line3D(points[(i - 1) * w + k], points[i * w]))
+                if k != 0:
+                    edges.append(Line3D(points[(i-1)*w+k-1], points[i*w+k]))
+
+                if i == h-1:
+                    edges.append(Line3D(points[i * w + k], points[k]))
+
+                    if k == w - 1:
+                        edges.append(Line3D(points[i * w + k], points[0]))
+                    if k != 0:
+                        edges.append(Line3D(points[i * w + k - 1], points[k]))
 
 
     return points, edges
