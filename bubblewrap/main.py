@@ -4,6 +4,8 @@ main.py
 
 import sys
 
+import numpy as np
+
 from PyQt5 import uic
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
@@ -81,8 +83,14 @@ class Form(QMainWindow):
 
 
 if __name__ == '__main__':
+    s_point = np.array((1, 2, 3))  # original location
+    s_point.shape = (3, 1)
+    print(s_point)
+
     # This is the minimum needed to show the Window
     app = QApplication(sys.argv)
     w = Form()
     w.show()
     sys.exit(app.exec_())
+
+
