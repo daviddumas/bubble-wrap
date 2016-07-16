@@ -25,6 +25,7 @@ class ControlCalculations(QObject):
         self.bind_btn(delegate.testbtn4)
         self.bind_btn(delegate.view_circles)
         self.bind_btn(delegate.view_3d)
+        self.bind_btn(delegate.dual_graph_btn)
         delegate.amountSlider.valueChanged.connect(lambda: self.adjustCircles(int(delegate.amountSlider.value())))
         delegate.xrot.valueChanged.connect(lambda: self.adjustShape())
         delegate.yrot.valueChanged.connect(lambda: self.adjustShape())
@@ -39,9 +40,9 @@ class ControlCalculations(QObject):
         side = int(math.sqrt(num_of_circles))
         scale = 1/side
         # Bind Data Structures
-        self.delegate.circles = [c.from_center_radius(
-            complex(x * scale, cmath.sqrt(3) * scale/2 * y) if y % 2 == 0 else complex(x * scale + scale/2, cmath.sqrt(3) * scale/2 * y), scale/2)
-                        for x in range(-side//2, side//2+1) for y in range(-side//2, side//2+1)]
+        self.delegate.circles = [[c.from_center_radius(complex(x * scale, cmath.sqrt(3) * scale/2 * y) if y % 2 == 0 else
+                                                      complex(x * scale + scale/2, cmath.sqrt(3) * scale/2 * y), scale/2), Vertex3D()]
+                                 for x in range(-side//2, side//2+1) for y in range(-side//2, side//2+1)]
         self.delegate.num_of_circles_label.setText("Number of circles: %d" % int((side+1)**2))
         self.delegate.graphics.draw()
 
@@ -73,6 +74,11 @@ class ControlCalculations(QObject):
             self.delegate.currentView = 1
             self.delegate.graphics.draw()
 
+        elif btn == d.dual_graph_btn:
+            self.delegate.dual_graph = d.dual_graph_btn.isChecked()
+            self.delegate.graphics.draw()
+
+
 
     """
     The following methods apply either an transformation adjustment or animation
@@ -80,7 +86,7 @@ class ControlCalculations(QObject):
     def adjust_all(self, transformation):
         d = self.delegate
         for i in range(len(d.circles)):
-            d.circles[i] = d.circles[i].transform_gl2(transformation)
+            d.circles[i][0] = d.circles[i][0].transform_gl2(transformation)
         self.delegate.graphics.draw()
 
     def animate_all(self, transformation):
@@ -99,13 +105,18 @@ The AnimationThread class animates transformations smoothly.
 
 note that `self.parent().draw_trigger.emit()` is what updates the graphics
 """
+
+from copy import deepcopy
 class AnimationThread(QThread):
 
     def __init__(self, parent, circles, transformation, tmill, start_i, end_i, points):
         super().__init__(parent)
         self.FPS = 48
 
-        self.orig_circles = circles.copy()
+        try:
+            self.orig_circles = deepcopy(circles)
+        except(Exception):
+            self.orig_circles = [[cx[0], cx[1]] for cx in circles]
         self.circles = circles
         self.trans = transformation
         self.time = tmill
@@ -129,7 +140,7 @@ class AnimationThread(QThread):
             T = T / np.sqrt(np.linalg.det(T))
 
             for ci in range(self.s_i, self.e_i):
-                self.circles[ci] = self.orig_circles[ci].transform_sl2(T)
+                self.circles[ci][0] = self.orig_circles[ci][0].transform_sl2(T)
 
             print("Circle Calculation time: %s ms" % int(1000*(time.time()-before)))
             # wait_time = wait - int(1000*(time.time()-before))
@@ -144,6 +155,6 @@ class AnimationThread(QThread):
 
         # update the last frame
         for ci in range(len(self.circles)):
-            self.circles[ci] = self.orig_circles[ci].transform_gl2(np.array(self.trans))
+            self.circles[ci][0] = self.orig_circles[ci][0].transform_gl2(np.array(self.trans))
 
         self.parent().draw_trigger.emit()

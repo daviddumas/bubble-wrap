@@ -57,8 +57,34 @@ class MyScene(QWidget):
                 ps = get_2d_points([lns.src, lns.next.src])
                 qp.drawLine(self.center[0] + scale*ps[0].x, self.center[1] + scale*ps[0].y, self.center[0] + scale*ps[1].x, self.center[1] + scale*ps[1].y)
         else:
-            for i in range(len(d.circles)):
-                cir = d.circles[i]
+            v_to_c = {}
+            for c, v in d.circles:
+                v_to_c[v] = c
+
+            edges_to_draw = []
+            for cirs in d.circles:
+                try:
+                    edges_to_draw += list(cirs[1].star())
+                except(Exception):
+                    pass
+
+            print(edges_to_draw)
+            v_drawn = []
+            print("drawing")
+            for edg in edges_to_draw:
+                v = edg.src
+                v2 = edg.next.src
+
+                cir = v_to_c[v]
+                cir2 = v_to_c[v2]
+
+                if d.dual_graph and not cir.contains_infinity:
+                    qp.drawLine(self.center[0] + 200 * (cir.center.real), self.center[1] + 200 * (cir.center.imag),
+                                self.center[0] + 200 * (cir2.center.real), self.center[1] + 200 * (cir2.center.imag))
+                if v in v_drawn:
+                    continue
+                v_drawn.append(v)
+
                 if not cir.contains_infinity:
                     #add ellipses to an array for optimization
                     if abs(cir.radius)>0.3:
@@ -86,6 +112,7 @@ class MyScene(QWidget):
                     qp.drawLine(x - size*cos(cir.line_angle), y - size*sin(cir.line_angle), x + size*cos(cir.line_angle), y + size*sin(cir.line_angle))
                     print(cir.line_base, cir.line_angle)
 
+
         self.dpad.setPos(self.width-70, 20)
         self.dpad.draw(qp)
         self.izoom.setPos(self.width-55, 80)
@@ -93,6 +120,7 @@ class MyScene(QWidget):
         self.ozoom.setPos(self.width-55, 105)
         self.ozoom.draw(qp)
 
+        print("drawn!")
         qp.end()
 
     def mouseReleaseEvent(self, QMouseEvent):
@@ -182,9 +210,7 @@ class ControlGraphics:
         Uncomment the following to draw:
         """
         #drawHouse(self.delegate)
-        #self.delegate.points, self.delegate.lines = build_cylinder(Point3D(0,0,-5), w=10, h=10)
         self.delegate.m_dcel = VisualDCEL(VisualDCEL.TORUS, w=8, h=8)
-        #self.delegate.points, self.delegate.lines = build_genus2(Point3D(0,0,0), w=16, h=16)
 
         #D, t, b = triangulations.cylinder(5, 5)
 

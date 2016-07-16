@@ -26,7 +26,10 @@ def openPacking(parent, ondone):
         for i in range(len(tempP)):
             P[str("Packing %d"%i)] = tempP[i]
 
-    odict = OrderedDict.fromkeys(sorted(P, key=lambda x: float(x)))
+    try:
+        odict = OrderedDict.fromkeys(sorted(P, key=lambda x: float(x)))
+    except(Exception):
+        odict = OrderedDict.fromkeys(sorted(P))
 
     mkey = showListDialog(parent, odict)
     if isinstance(mkey, int) and mkey == -1:
@@ -79,13 +82,14 @@ def openPacking(parent, ondone):
             vchains.add(ch)
     c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
     dev_pairs = set()  # Will store (chain,holonomy word) pairs for general pictures later
-    dev_circles = set()  # Will store circles for the Fuchsian (KAT) picture
+    dev_circles = []  # Will store circles for the Fuchsian (KAT) picture
     centers = dict()
     for ch in vchains:
         h = D.hol(ch, X0)
         c1 = c0.transform_gl2(h).transform_sl2(mnormKAT)
         if not c1.contains_infinity and c1.radius > 0.005:
-            dev_circles.add(c1)
+            v0 = ch[-1].src
+            dev_circles.append([c1, v0])
     parent.mainWidget.circles = list(dev_circles)
 
 
