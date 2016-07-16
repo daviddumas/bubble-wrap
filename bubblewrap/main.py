@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import *
 
 from calculation_view import ControlCalculations
 from graphics_view import ControlGraphics
-from canvas3d import Point3D
 from openpacking import openPacking
 
 V_NUM = "0.1"

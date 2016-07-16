@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import *
 from widgets import *
 import cpps.triangulations as triangulations
 from math import sqrt, sin, cos
-from canvas3d import Point3D, get_2d_points, translate_3d_points, Line3D, rotate_3d_points, VisualDCEL
+from canvas3d import Vertex3D, get_2d_points, translate_3d_points, Line3D, rotate_3d_points, VisualDCEL
 
 
 class MyScene(QWidget):
@@ -49,12 +49,12 @@ class MyScene(QWidget):
 
         if d.currentView == 1:
             scale = 10
-            for p in get_2d_points(d.m_dcel.points):
+            for p in get_2d_points(d.m_dcel.V):
                 qp.drawEllipse(self.center[0] + scale*p.x-2,
                                self.center[1] + scale*p.y-2,
                                4, 4)
-            for lns in d.m_dcel.edges:
-                ps = get_2d_points([lns.a, lns.b])
+            for lns in d.m_dcel.E:
+                ps = get_2d_points([lns.src, lns.next.src])
                 qp.drawLine(self.center[0] + scale*ps[0].x, self.center[1] + scale*ps[0].y, self.center[0] + scale*ps[1].x, self.center[1] + scale*ps[1].y)
         else:
             for i in range(len(d.circles)):
@@ -136,18 +136,18 @@ class MyScene(QWidget):
 
 
 def drawHouse(d):
-    p1 = Point3D()  #
-    p2 = Point3D(x=50)  #
-    p3 = Point3D(y=50)  #
-    p4 = Point3D(z=50)
-    p5 = Point3D(x=50, z=50)
-    p6 = Point3D(x=50, y=50)  #
-    p7 = Point3D(y=50, z=50)
-    p8 = Point3D(x=50, y=50, z=50)
-    p9 = Point3D(x=25, y=25, z=-25)
+    p1 = Vertex3D()  #
+    p2 = Vertex3D(x=50)  #
+    p3 = Vertex3D(y=50)  #
+    p4 = Vertex3D(z=50)
+    p5 = Vertex3D(x=50, z=50)
+    p6 = Vertex3D(x=50, y=50)  #
+    p7 = Vertex3D(y=50, z=50)
+    p8 = Vertex3D(x=50, y=50, z=50)
+    p9 = Vertex3D(x=25, y=25, z=-25)
     d.points = [p1, p2, p3, p4, p5, p6, p7, p8, p9]
-    translate_3d_points(d.points, Point3D(x=-25, y=-25, z=0))
-    rotate_3d_points(d.points, Point3D(), Point3D(0,0,-475))
+    translate_3d_points(d.points, Vertex3D(x=-25, y=-25, z=0))
+    rotate_3d_points(d.points, Vertex3D(), Vertex3D(0,0,-475))
 
     l1 = Line3D(p1, p2)
     l2 = Line3D(p1, p3)
@@ -183,7 +183,7 @@ class ControlGraphics:
         """
         #drawHouse(self.delegate)
         #self.delegate.points, self.delegate.lines = build_cylinder(Point3D(0,0,-5), w=10, h=10)
-        self.delegate.m_dcel = VisualDCEL(VisualDCEL.TORUS, 10, 10)
+        self.delegate.m_dcel = VisualDCEL(VisualDCEL.TORUS, w=8, h=8)
         #self.delegate.points, self.delegate.lines = build_genus2(Point3D(0,0,0), w=16, h=16)
 
         #D, t, b = triangulations.cylinder(5, 5)
