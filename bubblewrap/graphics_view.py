@@ -68,19 +68,25 @@ class MyScene(QWidget):
                 except(Exception):
                     pass
 
-            print(edges_to_draw)
+            #print(edges_to_draw)
             v_drawn = []
+            e_drawn = []
             print("drawing")
             for edg in edges_to_draw:
                 v = edg.src
                 v2 = edg.next.src
 
                 cir = v_to_c[v]
-                cir2 = v_to_c[v2]
+                if v2 in v_to_c:
+                    cir2 = v_to_c[v2]
+                else:
+                    cir2 = None
 
-                if d.dual_graph and not cir.contains_infinity:
-                    qp.drawLine(self.center[0] + 200 * (cir.center.real), self.center[1] + 200 * (cir.center.imag),
-                                self.center[0] + 200 * (cir2.center.real), self.center[1] + 200 * (cir2.center.imag))
+                if d.dual_graph and cir2 is not None and not cir.contains_infinity and edg.twin not in e_drawn:
+                    e_drawn.append(edg)
+                    if (cir.center.real - cir2.center.real)**2 + (cir.center.imag - cir2.center.imag)**2 <= (cir.radius + cir2.radius + 0.01) ** 2:
+                        qp.drawLine(self.center[0] + 200 * (cir.center.real), self.center[1] + 200 * (cir.center.imag),
+                                    self.center[0] + 200 * (cir2.center.real), self.center[1] + 200 * (cir2.center.imag))
                 if v in v_drawn:
                     continue
                 v_drawn.append(v)
