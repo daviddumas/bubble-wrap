@@ -24,7 +24,7 @@ Requirements
 Development Status
 ------------------
 
-Bubble Wrap is pre-alpha; its main features are still under intial development.
+Bubble Wrap is pre-alpha; its main features are still under development.
 
 
 Development Team
