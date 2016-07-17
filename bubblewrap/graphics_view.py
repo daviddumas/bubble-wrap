@@ -77,6 +77,7 @@ class MyScene(QWidget):
             v_drawn = []
             e_drawn = []
             print("drawing")
+            red_dist = [1e10, None, None]
             for edg in edges_to_draw:
                 v = edg.src
                 v2 = edg.next.src
@@ -94,10 +95,22 @@ class MyScene(QWidget):
                         ax, ay, bx, by, mx, my = self.center[0] + 200 * cir.center.real, self.center[1] + 200 * cir.center.imag, \
                                                  self.center[0] + 200 * cir2.center.real, self.center[1] + 200 * cir2.center.imag, self.mp[0], self.mp[1]
 
-                        if (ax > mx > bx or ax < mx < bx) and (ay > my > by or ay < my < by):
-                            qp.setPen(Qt.red)
-                        else:
-                            qp.setPen(Qt.black)
+                        bias = 10
+                        qp.setPen(Qt.black)
+                        if (ax+bias > mx > bx-bias or ax-bias < mx < bx+bias) and (ay+bias > my > by-bias or ay-bias < my < by+bias):
+                            d1 = ax - bx, ay - by
+                            d2 = ax - mx, ay - my
+                            a1 = math.atan2(d1[1], d1[0])
+                            a2 = math.atan2(d2[1], d2[0])
+                            da = abs(a1-a2)
+                            dist = math.sin(da) * sqrt(d2[0]**2 + d2[1]**2)
+                            if dist < bias and dist < red_dist[0]:
+                                if red_dist[1] is not None:
+                                    rax, ray, rbx, rby = self.center[0] + 200 * red_dist[1].center.real, self.center[1] + 200 * red_dist[1].center.imag, \
+                                                             self.center[0] + 200 * red_dist[2].center.real, self.center[1] + 200 * red_dist[2].center.imag
+                                    qp.drawLine(rax, ray, rbx, rby)
+                                red_dist = [dist, cir, cir2]
+                                qp.setPen(Qt.red)
 
                         qp.drawLine(ax, ay, bx, by)
                 if v in v_drawn:
@@ -181,6 +194,8 @@ class MyScene(QWidget):
         if T is not None:
             d.calculations.animate_all(T)
         d.graphics.draw()
+
+
 
 
 
