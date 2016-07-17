@@ -15,6 +15,7 @@ class MyScene(QWidget):
         self.dpad = TranslateWidget()
         self.izoom = PlusWidget()
         self.ozoom = MinusWidget()
+        self.mp = -1, -1
 
     @property
     def width(self):
@@ -34,6 +35,10 @@ class MyScene(QWidget):
 
         qp.fillRect(QRect(0, 0, self.width, self.height), QColor(250, 250, 250, 255))
         qp.setPen(Qt.black)
+        qp.drawEllipse(self.mp[0] - 1,
+                       self.mp[1] - 1,
+                       2, 2)
+        print("cursor:", self.mp)
         #qp.setBrush(Qt.black)
 
         d = self.delegate
@@ -85,8 +90,16 @@ class MyScene(QWidget):
                 if d.dual_graph and cir2 is not None and not cir.contains_infinity and edg.twin not in e_drawn:
                     e_drawn.append(edg)
                     if (cir.center.real - cir2.center.real)**2 + (cir.center.imag - cir2.center.imag)**2 <= (cir.radius + cir2.radius + 0.01) ** 2:
-                        qp.drawLine(self.center[0] + 200 * (cir.center.real), self.center[1] + 200 * (cir.center.imag),
-                                    self.center[0] + 200 * (cir2.center.real), self.center[1] + 200 * (cir2.center.imag))
+
+                        ax, ay, bx, by, mx, my = self.center[0] + 200 * cir.center.real, self.center[1] + 200 * cir.center.imag, \
+                                                 self.center[0] + 200 * cir2.center.real, self.center[1] + 200 * cir2.center.imag, self.mp[0], self.mp[1]
+
+                        if (ax > mx > bx or ax < mx < bx) and (ay > my > by or ay < my < by):
+                            qp.setPen(Qt.red)
+                        else:
+                            qp.setPen(Qt.black)
+
+                        qp.drawLine(ax, ay, bx, by)
                 if v in v_drawn:
                     continue
                 v_drawn.append(v)
@@ -138,6 +151,8 @@ class MyScene(QWidget):
     def mousePressEvent(self, mouse):
         d = self.delegate
 
+        self.mp = mouse.pos().x(), mouse.pos().y()
+
         T = None
         if self.izoom.isHit(mouse):
             # zoom in
@@ -165,6 +180,7 @@ class MyScene(QWidget):
 
         if T is not None:
             d.calculations.animate_all(T)
+        d.graphics.draw()
 
 
 
