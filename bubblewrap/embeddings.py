@@ -6,7 +6,7 @@ def placeholder_gen(i, j):
     return canvas3d.CoordinateVertex()
 
 
-def embedded_ring(nw, h=0, nh=1, coord_gen=placeholder_gen):
+def embedded_ring(nw, h=0, coord_gen=placeholder_gen):
     """Generate DCEL for a triangulated ring of height 1 and circumference w.
 
     Looks like:.. --T----------------...
@@ -31,8 +31,8 @@ def embedded_ring(nw, h=0, nh=1, coord_gen=placeholder_gen):
     # 10---11---12---13---14---15
 
 
-    V = [[coord_gen(float(h*10)/nh, float(i*10)/nw) for i in range(nw)],
-         [coord_gen(float((h+1)*10)/nh, float(i*10)/nw) for i in range(nw)]]
+    V = [[coord_gen(h, i) for i in range(nw)],
+         [coord_gen(h+1, i) for i in range(nw)]]
 
     E = set()
     F = set()
@@ -79,7 +79,7 @@ def embedded_cylinder(nw, nh, coord_gen):
 
     # Create h separate rings of height 1
     for i in range(nh):
-        RD,t,b = embedded_ring(nw, i, nh=nh, coord_gen=coord_gen)
+        RD,t,b = embedded_ring(nw, i, coord_gen=coord_gen)
         tops.append(t)
         bottoms.append(b)
         D |= RD

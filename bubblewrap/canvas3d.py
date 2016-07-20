@@ -45,20 +45,18 @@ def circ_torus_param(rmaj, rmin, i, j):
 
     x, z = (rmaj + rmin * math.cos(ang_maj))*cos(ang_min), (rmaj + rmin * math.cos(ang_maj))*sin(ang_min)
     y = rmin * sin(ang_maj)
-    # vert = CoordinateVertex(coords=(x, 0, z))
-    # orient_coordinates([vert], CoordinateVertex(coords=(ang_maj, 0, 0)))
 
     return CoordinateVertex(coords=(x, y, z))
 
 """Functions to create embedded DCELS"""
 
 
-def circular_torus_of_revolution(nw, nh, vcenter, rmaj, rmin):
+def circular_torus_of_revolution(nw, nh, rmaj, rmin, vcenter=None):
     _torus_coord_gen = lambda i, j: circ_torus_param(rmaj, rmin, float(i) / nw, float(j) / nh)
     return EmbeddedDCEL(data=embedded_torus(nw, nh, coord_gen=_torus_coord_gen))
 
 
-def cylinder_of_revolution(nw, nh, vcenter, rad, height):
+def cylinder_of_revolution(nw, nh, rad, height, vcenter=None):
     _torus_coord_gen = lambda i, j: circ_cylinder_param(height, rad, float(i) / nw, float(j) / nh)
     return EmbeddedDCEL(data=embedded_cylinder(nw, nh, coord_gen=_torus_coord_gen))
 

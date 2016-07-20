@@ -205,7 +205,7 @@ class ControlGraphics:
         Uncomment the following to draw:
         """
         #drawHouse(self.delegate)
-        self.delegate.m_dcel = circular_torus_of_revolution(10, 10, vcenter=None, rmaj=15, rmin=10)
+        self.delegate.m_dcel = circular_torus_of_revolution(8, 8, rmaj=8, rmin=5)
         #self.delegate.m_dcel = cylinder_of_revolution(10, 10, vcenter=None, rad=15, height=40)
 
         #D, t, b = triangulations.cylinder(5, 5)
