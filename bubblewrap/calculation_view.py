@@ -5,7 +5,7 @@ import numpy as np
 from PyQt5.QtCore import *
 
 import cpps.circle as c
-from canvas3d import Vertex3D, rotate_3d_points, orient_3d_points
+from canvas3d import CoordinateVertex, rotate_coordinates, orient_coordinates
 from interpolators import *
 
 
@@ -41,15 +41,15 @@ class ControlCalculations(QObject):
         scale = 1/side
         # Bind Data Structures
         self.delegate.circles = [[c.from_center_radius(complex(x * scale, cmath.sqrt(3) * scale/2 * y) if y % 2 == 0 else
-                                                      complex(x * scale + scale/2, cmath.sqrt(3) * scale/2 * y), scale/2), Vertex3D()]
+                                                      complex(x * scale + scale/2, cmath.sqrt(3) * scale/2 * y), scale/2), CoordinateVertex()]
                                  for x in range(-side//2, side//2+1) for y in range(-side//2, side//2+1)]
         self.delegate.num_of_circles_label.setText("Number of circles: %d" % int((side+1)**2))
         self.delegate.graphics.draw()
 
     def adjustShape(self):
-        orient_3d_points(self.delegate.m_dcel.V, Vertex3D(float(self.delegate.xrot.value())/100,
-                                                       float(self.delegate.yrot.value())/100,
-                                                       float(self.delegate.zrot.value())/100), around_point3d=Vertex3D())
+        orient_coordinates(self.delegate.m_dcel.V, CoordinateVertex((float(self.delegate.xrot.value()) / 100,
+                                                            float(self.delegate.yrot.value()) / 100,
+                                                            float(self.delegate.zrot.value()) / 100)))
         self.delegate.graphics.draw()
 
     def btn_clicked(self, btn):
@@ -145,7 +145,7 @@ class AnimationThread(QThread):
             print("Circle Calculation time: %s ms" % int(1000*(time.time()-before)))
             # wait_time = wait - int(1000*(time.time()-before))
 
-            rotate_3d_points(self.points, Vertex3D(-rotate_amount/2, rotate_amount/2, rotate_amount), Vertex3D())
+            rotate_coordinates(self.points, CoordinateVertex((-rotate_amount / 2, rotate_amount / 2, rotate_amount)))
             #print(self.points[0])
 
             self.parent().draw_trigger.emit()

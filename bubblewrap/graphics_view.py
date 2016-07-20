@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import *
 from widgets import *
 import cpps.triangulations as triangulations
 from math import sqrt, sin, cos
-from canvas3d import Vertex3D, get_2d_points, translate_3d_points, Line3D, rotate_3d_points, VisualDCEL
+from canvas3d import get_2d_points, EmbeddedDCEL, circular_torus_of_revolution, cylinder_of_revolution
 
 
 class MyScene(QWidget):
@@ -15,7 +15,7 @@ class MyScene(QWidget):
         self.dpad = TranslateWidget()
         self.izoom = PlusWidget()
         self.ozoom = MinusWidget()
-        self.mp = -1, -1
+        self.mp = -1e10, -1e10
 
     @property
     def width(self):
@@ -35,8 +35,8 @@ class MyScene(QWidget):
 
         qp.fillRect(QRect(0, 0, self.width, self.height), QColor(250, 250, 250, 255))
         qp.setPen(Qt.black)
-        qp.drawEllipse(self.mp[0] - 1,
-                       self.mp[1] - 1,
+        qp.drawEllipse(self.center[0] + self.mp[0] - 1,
+                       self.center[1] + self.mp[1] - 1,
                        2, 2)
         print("cursor:", self.mp)
         #qp.setBrush(Qt.black)
@@ -93,7 +93,7 @@ class MyScene(QWidget):
                     if (cir.center.real - cir2.center.real)**2 + (cir.center.imag - cir2.center.imag)**2 <= (cir.radius + cir2.radius + 0.01) ** 2:
 
                         ax, ay, bx, by, mx, my = self.center[0] + 200 * cir.center.real, self.center[1] + 200 * cir.center.imag, \
-                                                 self.center[0] + 200 * cir2.center.real, self.center[1] + 200 * cir2.center.imag, self.mp[0], self.mp[1]
+                                                 self.center[0] + 200 * cir2.center.real, self.center[1] + 200 * cir2.center.imag, self.mp[0]+self.center[0], self.mp[1]+self.center[1]
 
                         bias = 10
                         qp.setPen(Qt.black)
@@ -119,13 +119,7 @@ class MyScene(QWidget):
 
                 if not cir.contains_infinity:
                     #add ellipses to an array for optimization
-                    if abs(cir.radius)>0.3:
-                        qp.setPen(Qt.magenta)
-                    elif abs(cir.radius)>0.2:
-                        qp.setPen(Qt.darkBlue)
-                    elif abs(cir.radius)>0.1:
-                        qp.setPen(Qt.darkGreen)
-                    elif abs(cir.radius)>0.05:
+                    if v.valence > 6:
                         qp.setPen(Qt.red)
                     else:
                         qp.setPen(Qt.black)
@@ -164,7 +158,7 @@ class MyScene(QWidget):
     def mousePressEvent(self, mouse):
         d = self.delegate
 
-        self.mp = mouse.pos().x(), mouse.pos().y()
+        self.mp = mouse.pos().x()-self.center[0], mouse.pos().y()-self.center[1]
 
         T = None
         if self.izoom.isHit(mouse):
@@ -198,42 +192,6 @@ class MyScene(QWidget):
 
 
 
-
-
-def drawHouse(d):
-    p1 = Vertex3D()  #
-    p2 = Vertex3D(x=50)  #
-    p3 = Vertex3D(y=50)  #
-    p4 = Vertex3D(z=50)
-    p5 = Vertex3D(x=50, z=50)
-    p6 = Vertex3D(x=50, y=50)  #
-    p7 = Vertex3D(y=50, z=50)
-    p8 = Vertex3D(x=50, y=50, z=50)
-    p9 = Vertex3D(x=25, y=25, z=-25)
-    d.points = [p1, p2, p3, p4, p5, p6, p7, p8, p9]
-    translate_3d_points(d.points, Vertex3D(x=-25, y=-25, z=0))
-    rotate_3d_points(d.points, Vertex3D(), Vertex3D(0,0,-475))
-
-    l1 = Line3D(p1, p2)
-    l2 = Line3D(p1, p3)
-    l3 = Line3D(p1, p4)
-    l4 = Line3D(p8, p5)
-    l5 = Line3D(p8, p6)
-    l6 = Line3D(p8, p7)
-    l7 = Line3D(p5, p2)
-    l8 = Line3D(p5, p4)
-    l9 = Line3D(p6, p3)
-    l10 = Line3D(p6, p2)
-    l11 = Line3D(p7, p3)
-    l12 = Line3D(p7, p4)
-
-    l13 = Line3D(p9, p1)
-    l14 = Line3D(p9, p2)
-    l15 = Line3D(p9, p3)
-    l16 = Line3D(p9, p6)
-    d.lines = [l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16]
-
-
 class ControlGraphics:
 
     def __init__(self, delegate):
@@ -247,7 +205,8 @@ class ControlGraphics:
         Uncomment the following to draw:
         """
         #drawHouse(self.delegate)
-        self.delegate.m_dcel = VisualDCEL(VisualDCEL.TORUS, w=8, h=8)
+        self.delegate.m_dcel = circular_torus_of_revolution(10, 10, vcenter=None, rmaj=15, rmin=10)
+        #self.delegate.m_dcel = cylinder_of_revolution(10, 10, vcenter=None, rad=15, height=40)
 
         #D, t, b = triangulations.cylinder(5, 5)
 
