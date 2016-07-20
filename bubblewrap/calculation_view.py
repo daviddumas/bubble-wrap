@@ -43,7 +43,7 @@ class ControlCalculations(QObject):
         self.delegate.circles = [[c.from_center_radius(complex(x * scale, cmath.sqrt(3) * scale/2 * y) if y % 2 == 0 else
                                                       complex(x * scale + scale/2, cmath.sqrt(3) * scale/2 * y), scale/2), CoordinateVertex()]
                                  for x in range(-side//2, side//2+1) for y in range(-side//2, side//2+1)]
-        self.delegate.num_of_circles_label.setText("Number of circles: %d" % int((side+1)**2))
+
         self.delegate.graphics.draw()
 
     def adjustShape(self):

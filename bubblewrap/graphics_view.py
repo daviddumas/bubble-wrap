@@ -15,6 +15,9 @@ class MyScene(QWidget):
         self.dpad = TranslateWidget()
         self.izoom = PlusWidget()
         self.ozoom = MinusWidget()
+        self.infoPanel = InfoWidget()
+        self.infoPanel.addInfo("Valences", "(work in progress)")
+
         self.mp = -1e10, -1e10
 
     @property
@@ -38,6 +41,8 @@ class MyScene(QWidget):
         qp.drawEllipse(self.center[0] + self.mp[0] - 1,
                        self.center[1] + self.mp[1] - 1,
                        2, 2)
+
+
         print("cursor:", self.mp)
         #qp.setBrush(Qt.black)
 
@@ -72,6 +77,7 @@ class MyScene(QWidget):
                     edges_to_draw += list(cirs[1].star())
                 except(Exception):
                     pass
+
 
             #print(edges_to_draw)
             v_drawn = []
@@ -146,6 +152,9 @@ class MyScene(QWidget):
         self.ozoom.setPos(self.width-55, 105)
         self.ozoom.draw(qp)
 
+        self.infoPanel.setPos(0, self.height-self.infoPanel.height)
+        self.infoPanel.draw(qp)
+
         print("drawn!")
         qp.end()
 
@@ -208,13 +217,17 @@ class ControlGraphics:
         self.delegate.m_dcel = circular_torus_of_revolution(8, 8, rmaj=8, rmin=5)
         #self.delegate.m_dcel = cylinder_of_revolution(10, 10, vcenter=None, rad=15, height=40)
 
-        #D, t, b = triangulations.cylinder(5, 5)
-
-        #print(D)
-
         self.delegate.scene = MyScene(self.delegate)
         self.delegate.scene.setContentsMargins(0,0,0,0)
-        self.delegate.gv.addWidget(self.delegate.scene)
+        self.delegate.scene2 = MyScene(self.delegate)
+        self.delegate.scene2.setContentsMargins(0, 0, 0, 0)
 
-    def draw(self):
-        self.delegate.scene.update()
+        self.delegate.gv2.addWidget(self.delegate.scene2)
+        self.delegate.gv1.addWidget(self.delegate.scene)
+
+    def draw(self, view=-1):
+        if view == -1 or view == 0:
+            self.delegate.scene.update()
+
+        if view == -1 or view == 1:
+            self.delegate.scene2.update()

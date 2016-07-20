@@ -31,7 +31,6 @@ class EmbeddedDCEL(IndexedDCEL):
 
 
 def circ_cylinder_param(h, r, i, j):
-    print(i, j)
     ang = 2*math.pi*i
     x, z = r*math.cos(ang), r*math.sin(ang)
     y = h*j
@@ -39,7 +38,6 @@ def circ_cylinder_param(h, r, i, j):
 
 
 def circ_torus_param(rmaj, rmin, i, j):
-    print(i, j)
     ang_maj = 2 * math.pi * i
     ang_min = 2 * math.pi * j
 

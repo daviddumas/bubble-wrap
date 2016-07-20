@@ -1,5 +1,6 @@
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from collections import OrderedDict
 import math
 
 
@@ -18,13 +19,19 @@ class BaseWidget:
 
     @property
     def height(self):
-        assert self.source is not None
-        return self.source.height()
+        s = self.source
+        if s is None:
+            s = self.target
+        assert s is not None
+        return s.height()
 
     @property
     def width(self):
-        assert self.source is not None
-        return self.source.width()
+        s = self.source
+        if s is None:
+            s = self.target
+        assert s is not None
+        return s.width()
 
     def draw(self, QPainter):
         assert self.image is not None
@@ -90,10 +97,43 @@ class TranslateWidget(BaseWidget):
     def release(self):
         self.current_act = 0
 
+
 class PlusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
         super().__init__("ui/assets/plus_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/plus_act.png")
 
+
 class MinusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
         super().__init__("ui/assets/minus_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/minus_act.png")
+
+class InfoWidget(BaseWidget):
+    def __init__(self):
+        self.info_panels = OrderedDict()
+        self.margins = 10
+        self.font = QFont("Arial", 12)
+        self.fm = QFontMetrics(self.font)
+        self.max_width = 0
+        super().__init__(target=QRectF(0,0,200,self.margins*2))
+
+    def addInfo(self, label, info):
+        self.updateInfo(label, info)
+        self.target.setHeight(self.target.height()+15)
+
+    def updateInfo(self, label, info):
+        self.info_panels[label] = info
+        self.max_width = 0
+        for k in self.info_panels:
+            ww = self.fm.width("%s: %s"%(k, self.info_panels[k]))
+            if ww > self.max_width:
+                self.max_width = ww
+        self.target.setWidth(self.max_width+self.margins*2)
+
+    def draw(self, QPainter):
+        QPainter.fillRect(self.target, QColor(0, 0, 0, 200))
+        QPainter.setPen(Qt.white)
+
+        QPainter.setFont(self.font)
+        for i, k in enumerate(self.info_panels):
+            QPainter.drawText(int(self.target.left()+self.margins), int(self.target.top()+self.margins+12+15*i), "%s: %s"%(k, self.info_panels[k]))
+
