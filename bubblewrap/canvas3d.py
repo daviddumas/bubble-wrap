@@ -27,7 +27,7 @@ class EmbeddedDCEL(IndexedDCEL):
     pass
 
 
-"""Generators"""
+#>>>Generators<<<
 
 
 def circ_cylinder_param(h, r, i, j):
@@ -46,7 +46,7 @@ def circ_torus_param(rmaj, rmin, i, j):
 
     return CoordinateVertex(coords=(x, y, z))
 
-"""Functions to create embedded DCELS"""
+#>>>Functions to create embedded DCELS<<<
 
 
 def circular_torus_of_revolution(nw, nh, rmaj, rmin, vcenter=None):
@@ -58,7 +58,7 @@ def cylinder_of_revolution(nw, nh, rad, height, vcenter=None):
     _torus_coord_gen = lambda i, j: circ_cylinder_param(height, rad, float(i) / nw, float(j) / nh)
     return EmbeddedDCEL(data=embedded_cylinder(nw, nh, coord_gen=_torus_coord_gen))
 
-"""END FUNCTIONS"""
+#>>>END FUNCTIONS<<<
 
 
 class CoordinateVertex(dcel.Vertex):

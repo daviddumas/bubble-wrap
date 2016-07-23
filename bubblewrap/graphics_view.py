@@ -1,11 +1,118 @@
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+# Installation command:
+# pip3 install PyOpenGL PyOpenGL_accelerate
+
+from OpenGL.GL import *
+from OpenGL.GLU import gluPerspective
 from PyQt5.QtWidgets import *
+from PyQt5.QtOpenGL import *
 from widgets import *
-import cpps.triangulations as triangulations
 from math import sqrt, sin, cos
 from canvas3d import get_2d_points, EmbeddedDCEL, circular_torus_of_revolution, cylinder_of_revolution
 
+
+class glWidget(QGLWidget):
+
+    def __init__(self, delegate):
+        QGLWidget.__init__(self, None)
+        self.mouse_pos = [-1e5, -1e5, -1e5, -1e5]
+        self.rX = 0
+        self.rY = 0
+        self.rZ = 0
+        self.diff = (0, 0, 0)
+
+        self.btn = 0
+
+        self.zoom = 45
+        self.m_dcel = delegate.m_dcel
+
+    def paintGL(self):
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glLoadIdentity()
+
+        glTranslatef(0, 0, -6)
+        glRotate(self.rX, 1, 0, 0)
+        glRotate(self.rY, 0, 1, 0)
+        glRotate(self.rZ, 0, 0, 1)
+        glColor3f(1.0, 0.0, 0.0)
+        glPolygonMode(GL_FRONT, GL_LINE)
+        #glPolygonMode(GL_FRONT, GL_FILL)
+        glPolygonMode(GL_BACK, GL_LINE)
+
+        glBegin(GL_TRIANGLES)
+        for face in self.m_dcel.F:
+            e0 = face.edge
+            glVertex3f(e0.src.coordinates[0], e0.src.coordinates[1], e0.src.coordinates[2])
+            e_n = e0.next
+            while e_n is not e0:
+                glVertex3f(e_n.src.coordinates[0], e_n.src.coordinates[1], e_n.src.coordinates[2])
+                e_n = e_n.next
+
+        glEnd()
+
+        # posx, posy = 0, 0
+        # sides = 32
+        # radius = 1.5
+        # glColor3f(0.1, 0.1, 0.1)
+        # glPolygonMode(GL_FRONT, GL_FILL)
+        # glPolygonMode(GL_BACK, GL_FILL)
+        # glBegin(GL_POLYGON)
+        # for i in range(sides):
+        #     cosine = radius * cos(i * 2 * pi / sides) + posx
+        #     sine = radius * sin(i * 2 * pi / sides) + posy
+        #     glVertex2f(cosine, sine)
+        #
+        # glEnd()
+
+        glFlush()
+
+    def wheelEvent(self, event):
+        wheel_point = event.angleDelta()/60
+        self.zoom += wheel_point.y()
+        print(self.zoom)
+        self.fix_size()
+        self.repaint()
+
+    def mousePressEvent(self, mouse):
+        self.mouse_pos[0:1] = mouse.pos().x(),mouse.pos().y()
+        self.btn = mouse.button()
+
+    def mouseMoveEvent(self, mouse):
+        self.mouse_pos[2:3] = mouse.pos().x(), mouse.pos().y()
+
+        print(mouse.button())
+        if self.btn == Qt.LeftButton:
+            self.rX = self.diff[0] + self.mouse_pos[3] - self.mouse_pos[1]
+            self.rY = self.diff[1] + self.mouse_pos[2] - self.mouse_pos[0]
+        elif self.btn == Qt.RightButton:
+            self.rZ = self.diff[2] + self.mouse_pos[2] - self.mouse_pos[0] - self.mouse_pos[3] + self.mouse_pos[1]
+
+        self.repaint()
+
+    def mouseReleaseEvent(self, mouse):
+        self.diff = (self.rX, self.rY, self.rZ)
+        self.mouse_pos = self.mouse_pos = [-1e5, -1e5, -1e5, -1e5]
+
+    def initializeGL(self):
+
+        glClearDepth(1.0)
+        glDepthFunc(GL_LESS)
+        glEnable(GL_DEPTH_TEST)
+        glShadeModel(GL_SMOOTH)
+        glClearColor(0.9, 0.9, 0.9, 1.0)
+
+        self.fix_size()
+
+    def resizeGL(self, p_int, p_int_1):
+        self.fix_size()
+
+    def fix_size(self):
+        # fixes aspect and size of viewport when viewport is resized
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        aspect = self.width() / self.height()
+        gluPerspective(self.zoom, aspect, 0.1, 100.0)
+        glMatrixMode(GL_MODELVIEW)
 
 class MyScene(QWidget):
     def __init__(self, delegate, parent=None):
@@ -214,20 +321,20 @@ class ControlGraphics:
         Uncomment the following to draw:
         """
         #drawHouse(self.delegate)
-        self.delegate.m_dcel = circular_torus_of_revolution(8, 8, rmaj=8, rmin=5)
+        self.delegate.m_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
         #self.delegate.m_dcel = cylinder_of_revolution(10, 10, vcenter=None, rad=15, height=40)
 
-        self.delegate.scene = MyScene(self.delegate)
-        self.delegate.scene.setContentsMargins(0,0,0,0)
+        self.delegate.opengl = glWidget(self.delegate)
+        self.delegate.opengl.setContentsMargins(0,0,0,0)
         self.delegate.scene2 = MyScene(self.delegate)
         self.delegate.scene2.setContentsMargins(0, 0, 0, 0)
 
         self.delegate.gv2.addWidget(self.delegate.scene2)
-        self.delegate.gv1.addWidget(self.delegate.scene)
+        self.delegate.gv1.addWidget(self.delegate.opengl)
 
     def draw(self, view=-1):
         if view == -1 or view == 0:
-            self.delegate.scene.update()
+            self.delegate.opengl.update()
 
         if view == -1 or view == 1:
             self.delegate.scene2.update()
