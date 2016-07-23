@@ -5,7 +5,7 @@ import numpy as np
 from PyQt5.QtCore import *
 
 import cpps.circle as c
-from canvas3d import CoordinateVertex, rotate_coordinates, orient_coordinates
+from canvas3d import CoordinateVertex
 from interpolators import *
 
 
@@ -23,13 +23,7 @@ class ControlCalculations(QObject):
         self.bind_btn(delegate.testbtn2)
         self.bind_btn(delegate.testbtn3)
         self.bind_btn(delegate.testbtn4)
-        self.bind_btn(delegate.view_circles)
-        self.bind_btn(delegate.view_3d)
         self.bind_btn(delegate.dual_graph_btn)
-        delegate.amountSlider.valueChanged.connect(lambda: self.adjustCircles(int(delegate.amountSlider.value())))
-        delegate.xrot.valueChanged.connect(lambda: self.adjustShape())
-        delegate.yrot.valueChanged.connect(lambda: self.adjustShape())
-        delegate.zrot.valueChanged.connect(lambda: self.adjustShape())
         self.adjustCircles(16)
 
 
@@ -46,12 +40,6 @@ class ControlCalculations(QObject):
 
         self.delegate.graphics.draw()
 
-    def adjustShape(self):
-        orient_coordinates(self.delegate.m_dcel.V, CoordinateVertex((float(self.delegate.xrot.value()) / 100,
-                                                            float(self.delegate.yrot.value()) / 100,
-                                                            float(self.delegate.zrot.value()) / 100)))
-        self.delegate.graphics.draw()
-
     def btn_clicked(self, btn):
         T = ((1.005 + 1.005j, 0.01),
              (0.5, 1 + 0.5j))
@@ -66,13 +54,6 @@ class ControlCalculations(QObject):
             self.animate_all(T)
         elif btn == d.testbtn4:
             self.animate_all(np.linalg.inv(T))
-
-        elif btn == d.view_circles:
-            self.delegate.currentView = 0
-            self.delegate.graphics.draw()
-        elif btn == d.view_3d:
-            self.delegate.currentView = 1
-            self.delegate.graphics.draw()
 
         elif btn == d.dual_graph_btn:
             self.delegate.dual_graph = d.dual_graph_btn.isChecked()
@@ -145,7 +126,6 @@ class AnimationThread(QThread):
             print("Circle Calculation time: %s ms" % int(1000*(time.time()-before)))
             # wait_time = wait - int(1000*(time.time()-before))
 
-            rotate_coordinates(self.points, CoordinateVertex((-rotate_amount / 2, rotate_amount / 2, rotate_amount)))
             #print(self.points[0])
 
             self.parent().draw_trigger.emit()

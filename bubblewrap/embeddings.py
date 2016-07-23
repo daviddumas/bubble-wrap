@@ -1,9 +1,8 @@
 import cpps.dcel as dcel
-import canvas3d
 
 
 def placeholder_gen(i, j):
-    return canvas3d.CoordinateVertex()
+    return dcel.Vertex()
 
 
 def embedded_ring(nw, h=0, coord_gen=placeholder_gen):

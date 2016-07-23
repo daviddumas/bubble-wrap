@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtOpenGL import *
 from widgets import *
 from math import sqrt, sin, cos
-from canvas3d import get_2d_points, EmbeddedDCEL, circular_torus_of_revolution, cylinder_of_revolution
+from canvas3d import EmbeddedDCEL, circular_torus_of_revolution, cylinder_of_revolution
 
 
 class glWidget(QGLWidget):
@@ -36,19 +36,9 @@ class glWidget(QGLWidget):
         glRotate(self.rZ, 0, 0, 1)
         glColor3f(1.0, 0.0, 0.0)
         glPolygonMode(GL_FRONT, GL_LINE)
-        #glPolygonMode(GL_FRONT, GL_FILL)
         glPolygonMode(GL_BACK, GL_LINE)
 
-        glBegin(GL_TRIANGLES)
-        for face in self.m_dcel.F:
-            e0 = face.edge
-            glVertex3f(e0.src.coordinates[0], e0.src.coordinates[1], e0.src.coordinates[2])
-            e_n = e0.next
-            while e_n is not e0:
-                glVertex3f(e_n.src.coordinates[0], e_n.src.coordinates[1], e_n.src.coordinates[2])
-                e_n = e_n.next
-
-        glEnd()
+        self.m_dcel.paintGL()
 
         # posx, posy = 0, 0
         # sides = 32
@@ -69,7 +59,6 @@ class glWidget(QGLWidget):
     def wheelEvent(self, event):
         wheel_point = event.angleDelta()/60
         self.zoom += wheel_point.y()
-        print(self.zoom)
         self.fix_size()
         self.repaint()
 
