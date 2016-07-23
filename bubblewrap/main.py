@@ -31,9 +31,7 @@ class Form(QMainWindow):
         # Set the title/name of the frame
         self.setWindowTitle('CPPS UI From XML Example v%s' % V_NUM)
 
-        """
-        ACTIONS
-        """
+        # >>> ACTIONS <<<
         exitAction = QAction('&Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit application')
@@ -58,21 +56,13 @@ class Form(QMainWindow):
 
         # Bind Data Structures
         self.mainWidget.m_dcel = None
-        self.mainWidget.currentView = 0
+        self.mainWidget.circle_packing = []
         self.mainWidget.dual_graph = False
-        # Old circles
-        # self.circles = [c.from_center_radius(0 + 0j, 50), c.from_center_radius(100 + 0j, 50),
-        #                   c.from_center_radius(-100 + 0j, 50), c.from_center_radius(0+100j, 50),
-        #                   c.from_center_radius(0 - 100j, 50)]
+        self.mainWidget.packing_trans = [np.array(((1, 0), (0, 1)), dtype='complex')]
 
         # Connect Controllers
         self.mainWidget.graphics = ControlGraphics(self.mainWidget)
         self.mainWidget.calculations = ControlCalculations(self.mainWidget)
-
-        # EXTRA
-        import numpy as np
-        a = np.array((1, 2, 3))
-        print(np.linalg.norm(a))
 
     def openNew(self):
         openPacking(self, lambda: self.mainWidget.graphics.draw())

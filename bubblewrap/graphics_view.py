@@ -8,6 +8,7 @@ from PyQt5.QtOpenGL import *
 from widgets import *
 from math import sqrt, sin, cos
 from canvas3d import EmbeddedDCEL, circular_torus_of_revolution, cylinder_of_revolution
+import numpy as np
 
 
 class glWidget(QGLWidget):
@@ -108,6 +109,9 @@ class MyScene(QWidget):
         super().__init__(parent)
         self.delegate = delegate
 
+        # display_params (zoom, pos:[relative to center])
+        self.display_params = {"zoom": 200, "pos": [0, 0]}
+
         self.dpad = TranslateWidget()
         self.izoom = PlusWidget()
         self.ozoom = MinusWidget()
@@ -116,130 +120,114 @@ class MyScene(QWidget):
 
         self.mp = -1e10, -1e10
 
-    @property
-    def width(self):
-        return self.frameSize().width()
-
-    @property
-    def height(self):
-        return self.frameSize().height()
-
-    @property
-    def center(self):
-        return self.width / 2, self.height / 2
-
     def paintEvent(self, QPaintEvent):
         qp = QPainter(self)
         qp.setRenderHint(QPainter.Antialiasing)
 
         qp.fillRect(QRect(0, 0, self.width, self.height), QColor(250, 250, 250, 255))
-        qp.setPen(Qt.black)
-        qp.drawEllipse(self.center[0] + self.mp[0] - 1,
-                       self.center[1] + self.mp[1] - 1,
-                       2, 2)
+        # qp.setPen(Qt.black)
+        # qp.drawEllipse(self.center[0] + self.mp[0] - 1,
+        #                self.center[1] + self.mp[1] - 1,
+        #                2, 2)
 
 
-        print("cursor:", self.mp)
+        #print("cursor:", self.mp)
         #qp.setBrush(Qt.black)
 
         d = self.delegate
+        zoom = self.display_params["zoom"]
+        offset = self.display_params["pos"]
 
-        # if d.testRad is not None:
-        #     qp.drawEllipse(self.center[0],
-        #                    self.center[1] - d.testRad[0],
-        #                    d.testRad[0] * 2,
-        #                    d.testRad[0] * 2)
+        # transform circles
+        m_circles = []
+        T = d.packing_trans[0] / np.sqrt(np.linalg.det(d.packing_trans[0]))
+        for ci in d.circles:
+            m_circles.append((ci[0].transform_sl2(T), ci[1]))
 
-        # d.scene.clear()
         # draw circles
+        v_to_c = {}
+        for c, v in m_circles:
+            v_to_c[v] = c
 
-        if d.currentView == 1:
-            scale = 10
-            for p in get_2d_points(d.m_dcel.V):
-                qp.drawEllipse(self.center[0] + scale*p.x-2,
-                               self.center[1] + scale*p.y-2,
-                               4, 4)
-            for lns in d.m_dcel.E:
-                ps = get_2d_points([lns.src, lns.next.src])
-                qp.drawLine(self.center[0] + scale*ps[0].x, self.center[1] + scale*ps[0].y, self.center[0] + scale*ps[1].x, self.center[1] + scale*ps[1].y)
-        else:
-            v_to_c = {}
-            for c, v in d.circles:
-                v_to_c[v] = c
+        edges_to_draw = []
+        for cirs in d.circles:
+            try:
+                edges_to_draw += list(cirs[1].star())
+            except(Exception):
+                pass
 
-            edges_to_draw = []
-            for cirs in d.circles:
-                try:
-                    edges_to_draw += list(cirs[1].star())
-                except(Exception):
-                    pass
+        # print(edges_to_draw)
+        v_drawn = []
+        e_drawn = []
+        #print("drawing")
+        red_dist = [1e10, None, None]
+        for edg in edges_to_draw:
+            v = edg.src
+            v2 = edg.next.src
 
+            cir = v_to_c[v]
+            if v2 in v_to_c:
+                cir2 = v_to_c[v2]
+            else:
+                cir2 = None
 
-            #print(edges_to_draw)
-            v_drawn = []
-            e_drawn = []
-            print("drawing")
-            red_dist = [1e10, None, None]
-            for edg in edges_to_draw:
-                v = edg.src
-                v2 = edg.next.src
+            if d.dual_graph and cir2 is not None and not cir.contains_infinity and edg.twin not in e_drawn:
+                e_drawn.append(edg)
+                if (cir.center.real - cir2.center.real) ** 2 + (cir.center.imag - cir2.center.imag) ** 2 <= (
+                        cir.radius + cir2.radius + 0.01) ** 2:
 
-                cir = v_to_c[v]
-                if v2 in v_to_c:
-                    cir2 = v_to_c[v2]
+                    ax, ay, bx, by, mx, my = self.center[0] + offset[0] + zoom * cir.center.real, self.center[
+                        1] + offset[1] + zoom * cir.center.imag, \
+                                             self.center[0] + offset[0] + zoom * cir2.center.real, self.center[
+                                                 1] + offset[1] + zoom * cir2.center.imag, self.mp[0] + self.center[0], self.mp[1] + \
+                                             self.center[1]
+
+                    bias = 10
+                    qp.setPen(Qt.black)
+                    if (ax + bias > mx > bx - bias or ax - bias < mx < bx + bias) and (
+                                    ay + bias > my > by - bias or ay - bias < my < by + bias):
+                        d1 = ax - bx, ay - by
+                        d2 = ax - mx, ay - my
+                        a1 = math.atan2(d1[1], d1[0])
+                        a2 = math.atan2(d2[1], d2[0])
+                        da = abs(a1 - a2)
+                        dist = math.sin(da) * sqrt(d2[0] ** 2 + d2[1] ** 2)
+                        if dist < bias and dist < red_dist[0]:
+                            if red_dist[1] is not None:
+                                rax, ray, rbx, rby = self.center[0] + 200 * red_dist[1].center.real, self.center[
+                                    1] + 200 * red_dist[1].center.imag, \
+                                                     self.center[0] + 200 * red_dist[2].center.real, self.center[
+                                                         1] + 200 * red_dist[2].center.imag
+                                qp.drawLine(rax, ray, rbx, rby)
+                            red_dist = [dist, cir, cir2]
+                            qp.setPen(Qt.red)
+
+                    qp.drawLine(ax, ay, bx, by)
+            if v in v_drawn:
+                continue
+            v_drawn.append(v)
+
+            if not cir.contains_infinity:
+                # add ellipses to an array for optimization
+                if v.valence > 6:
+                    qp.setPen(Qt.red)
                 else:
-                    cir2 = None
+                    qp.setPen(Qt.black)
 
-                if d.dual_graph and cir2 is not None and not cir.contains_infinity and edg.twin not in e_drawn:
-                    e_drawn.append(edg)
-                    if (cir.center.real - cir2.center.real)**2 + (cir.center.imag - cir2.center.imag)**2 <= (cir.radius + cir2.radius + 0.01) ** 2:
-
-                        ax, ay, bx, by, mx, my = self.center[0] + 200 * cir.center.real, self.center[1] + 200 * cir.center.imag, \
-                                                 self.center[0] + 200 * cir2.center.real, self.center[1] + 200 * cir2.center.imag, self.mp[0]+self.center[0], self.mp[1]+self.center[1]
-
-                        bias = 10
-                        qp.setPen(Qt.black)
-                        if (ax+bias > mx > bx-bias or ax-bias < mx < bx+bias) and (ay+bias > my > by-bias or ay-bias < my < by+bias):
-                            d1 = ax - bx, ay - by
-                            d2 = ax - mx, ay - my
-                            a1 = math.atan2(d1[1], d1[0])
-                            a2 = math.atan2(d2[1], d2[0])
-                            da = abs(a1-a2)
-                            dist = math.sin(da) * sqrt(d2[0]**2 + d2[1]**2)
-                            if dist < bias and dist < red_dist[0]:
-                                if red_dist[1] is not None:
-                                    rax, ray, rbx, rby = self.center[0] + 200 * red_dist[1].center.real, self.center[1] + 200 * red_dist[1].center.imag, \
-                                                             self.center[0] + 200 * red_dist[2].center.real, self.center[1] + 200 * red_dist[2].center.imag
-                                    qp.drawLine(rax, ray, rbx, rby)
-                                red_dist = [dist, cir, cir2]
-                                qp.setPen(Qt.red)
-
-                        qp.drawLine(ax, ay, bx, by)
-                if v in v_drawn:
-                    continue
-                v_drawn.append(v)
-
-                if not cir.contains_infinity:
-                    #add ellipses to an array for optimization
-                    if v.valence > 6:
-                        qp.setPen(Qt.red)
-                    else:
-                        qp.setPen(Qt.black)
-
-                    qp.drawEllipse(self.center[0] + 200*(cir.center.real-cir.radius),
-                                   self.center[1] + 200*(cir.center.imag-cir.radius),
-                                   200 * (cir.radius*2), 200*(cir.radius*2))
-                else:
-                    # creates a straight line
-                    x = self.center[0] + cir.line_base.real
-                    y = self.center[1] + cir.line_base.imag
-                    size = sqrt(cir.line_base.real**2 + cir.line_base.imag**2)
-                    scrSizeAvg = (self.width+self.height)/2
-                    size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
-                    # Draw the line out from the line_base in either direction
-                    qp.drawLine(x - size*cos(cir.line_angle), y - size*sin(cir.line_angle), x + size*cos(cir.line_angle), y + size*sin(cir.line_angle))
-                    print(cir.line_base, cir.line_angle)
-
+                qp.drawEllipse(self.center[0] + offset[0] + zoom * (cir.center.real - cir.radius),
+                               self.center[1] + offset[1] + zoom * (cir.center.imag - cir.radius),
+                               zoom * (cir.radius * 2), zoom * (cir.radius * 2))
+            else:
+                # creates a straight line
+                x = self.center[0] + cir.line_base.real
+                y = self.center[1] + cir.line_base.imag
+                size = sqrt(cir.line_base.real ** 2 + cir.line_base.imag ** 2)
+                scrSizeAvg = (self.width + self.height) / 2
+                size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
+                # Draw the line out from the line_base in either direction
+                qp.drawLine(x - size * cos(cir.line_angle), y - size * sin(cir.line_angle),
+                            x + size * cos(cir.line_angle), y + size * sin(cir.line_angle))
+                print(cir.line_base, cir.line_angle)
 
         self.dpad.setPos(self.width-70, 20)
         self.dpad.draw(qp)
@@ -251,7 +239,7 @@ class MyScene(QWidget):
         self.infoPanel.setPos(0, self.height-self.infoPanel.height)
         self.infoPanel.draw(qp)
 
-        print("drawn!")
+        #print("drawn!")
         qp.end()
 
     def mouseReleaseEvent(self, QMouseEvent):
@@ -265,36 +253,37 @@ class MyScene(QWidget):
 
         self.mp = mouse.pos().x()-self.center[0], mouse.pos().y()-self.center[1]
 
-        T = None
         if self.izoom.isHit(mouse):
             # zoom in
-            T = ((1.6, 0),
-                 (0, 0.625))
+            self.display_params["zoom"] *= 1.5
         elif self.ozoom.isHit(mouse):
             # zoom out
-            T = ((0.625, 0),
-                 (0, 1.6))
+            self.display_params["zoom"] /= 1.5
 
         trans = self.dpad.isHit(mouse)
 
-        if trans == 1:
-            T = ((1, 0.5),
-                 (0, 1))
-        elif trans == 2:
-            T = ((1, -0.5j),
-                 (0, 1))
-        elif trans == 3:
-            T = ((1, -0.5),
-                 (0, 1))
-        elif trans == 4:
-            T = ((1, 0.5j),
-                 (0, 1))
+        if trans == TranslateWidget.RIGHT:
+            self.display_params["pos"][0] += 10
+        elif trans == TranslateWidget.LEFT:
+            self.display_params["pos"][0] -= 10
+        elif trans == TranslateWidget.UP:
+            self.display_params["pos"][1] -= 10
+        elif trans == TranslateWidget.DOWN:
+            self.display_params["pos"][1] += 10
 
-        if T is not None:
-            d.calculations.animate_all(T)
         d.graphics.draw()
 
+    @property
+    def width(self):
+        return self.frameSize().width()
 
+    @property
+    def height(self):
+        return self.frameSize().height()
+
+    @property
+    def center(self):
+        return self.width / 2, self.height / 2
 
 
 class ControlGraphics:
@@ -303,9 +292,6 @@ class ControlGraphics:
         self.delegate = delegate
         # gv = QVBoxLayout()
         # gv.addWidget()
-        self.delegate.points = []
-        self.delegate.lines = []
-        self.delegate.testRad = [2]
         """
         Uncomment the following to draw:
         """

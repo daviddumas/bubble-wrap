@@ -53,7 +53,8 @@ class ControlCalculations(QObject):
         elif btn == d.testbtn3:
             self.animate_all(T)
         elif btn == d.testbtn4:
-            self.animate_all(np.linalg.inv(T))
+            I = np.array(((1,0),(0,1)), dtype='complex')
+            self.animate_all(np.linalg.inv(d.packing_trans[0]))
 
         elif btn == d.dual_graph_btn:
             self.delegate.dual_graph = d.dual_graph_btn.isChecked()
@@ -66,14 +67,13 @@ class ControlCalculations(QObject):
     """
     def adjust_all(self, transformation):
         d = self.delegate
-        for i in range(len(d.circles)):
-            d.circles[i][0] = d.circles[i][0].transform_gl2(transformation)
+        d.packing_trans[0] = d.packing_trans[0].dot(np.array(transformation, dtype='complex'))
         self.delegate.graphics.draw()
 
     def animate_all(self, transformation):
         # Create a new Animation Thread.  The new thread will insure our UI does not freeze.
         # The Animation Thread time is in milliseconds
-        th = AnimationThread(self, self.delegate.circles, transformation, 500, 0, len(self.delegate.circles), self.delegate.m_dcel.V)
+        th = AnimationThread(self, transformation, 500)
         th.start()
         # th2 = AnimationThread(self, self.delegate.circles, transformation, 1000, len(self.delegate.circles) // 2,
         #                       len(self.delegate.circles))
@@ -87,23 +87,16 @@ The AnimationThread class animates transformations smoothly.
 note that `self.parent().draw_trigger.emit()` is what updates the graphics
 """
 
-from copy import deepcopy
 class AnimationThread(QThread):
 
-    def __init__(self, parent, circles, transformation, tmill, start_i, end_i, points):
+    def __init__(self, parent, transformation, tmill):
         super().__init__(parent)
         self.FPS = 48
 
-        try:
-            self.orig_circles = deepcopy(circles)
-        except(Exception):
-            self.orig_circles = [[cx[0], cx[1]] for cx in circles]
-        self.circles = circles
+        self.c_trans = parent.delegate.packing_trans
+        self.orig_trans = np.copy(self.c_trans[0])
         self.trans = transformation
         self.time = tmill
-        self.s_i = start_i
-        self.e_i = end_i
-        self.points = points
 
         self.step = (np.array(self.trans, dtype='complex') - np.array(((1, 0), (0, 1)), dtype='complex'))
 
@@ -112,29 +105,20 @@ class AnimationThread(QThread):
         wait = 1000//self.FPS
         counter = 0
 
-        rotate_amount = math.pi / 2 / (self.time/1000.0 * self.FPS)
-
         while int(self.time/1000.0 * self.FPS) >= counter:
-            before = time.time()
+            #before = time.time()
             T = np.array(((1, 0), (0, 1)), dtype='complex') + self.step * swift_in_out(counter/(self.time/1000.0 * self.FPS))
 
-            T = T / np.sqrt(np.linalg.det(T))
-
-            for ci in range(self.s_i, self.e_i):
-                self.circles[ci][0] = self.orig_circles[ci][0].transform_sl2(T)
-
-            print("Circle Calculation time: %s ms" % int(1000*(time.time()-before)))
+            self.c_trans[0] = self.orig_trans.dot(T)
+            # print(T, self.c_trans)
+            # print("Circle Calculation time: %s ms" % int(1000*(time.time()-before)))
             # wait_time = wait - int(1000*(time.time()-before))
-
-            #print(self.points[0])
 
             self.parent().draw_trigger.emit()
             self.msleep(wait)
             counter += 1
 
-
         # update the last frame
-        for ci in range(len(self.circles)):
-            self.circles[ci][0] = self.orig_circles[ci][0].transform_gl2(np.array(self.trans))
+        self.c_trans[0] = self.orig_trans.dot(np.array(self.trans, dtype='complex'))
 
         self.parent().draw_trigger.emit()

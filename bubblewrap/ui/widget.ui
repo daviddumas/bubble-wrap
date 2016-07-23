@@ -207,7 +207,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="text">
-          <string>animate undo transform</string>
+          <string>reset transform</string>
          </property>
          <property name="flat">
           <bool>false</bool>
