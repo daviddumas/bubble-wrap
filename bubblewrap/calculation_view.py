@@ -34,11 +34,11 @@ class ControlCalculations(QObject):
         side = int(math.sqrt(num_of_circles))
         scale = 1/side
         # Bind Data Structures
-        self.delegate.circles = [[c.from_center_radius(complex(x * scale, cmath.sqrt(3) * scale/2 * y) if y % 2 == 0 else
-                                                      complex(x * scale + scale/2, cmath.sqrt(3) * scale/2 * y), scale/2), CoordinateVertex()]
-                                 for x in range(-side//2, side//2+1) for y in range(-side//2, side//2+1)]
+        # self.delegate.circles = [[c.from_center_radius(complex(x * scale, cmath.sqrt(3) * scale/2 * y) if y % 2 == 0 else
+        #                                               complex(x * scale + scale/2, cmath.sqrt(3) * scale/2 * y), scale/2), CoordinateVertex()]
+        #                          for x in range(-side//2, side//2+1) for y in range(-side//2, side//2+1)]
 
-        self.delegate.graphics.draw()
+        #self.delegate.graphics.draw()
 
     def btn_clicked(self, btn):
         T = ((1.005 + 1.005j, 0.01),
@@ -53,7 +53,6 @@ class ControlCalculations(QObject):
         elif btn == d.testbtn3:
             self.animate_all(T)
         elif btn == d.testbtn4:
-            I = np.array(((1,0),(0,1)), dtype='complex')
             self.animate_all(np.linalg.inv(d.packing_trans[0]))
 
         elif btn == d.dual_graph_btn:

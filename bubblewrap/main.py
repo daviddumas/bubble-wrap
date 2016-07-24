@@ -56,6 +56,7 @@ class Form(QMainWindow):
 
         # Bind Data Structures
         self.mainWidget.m_dcel = None
+        self.mainWidget.circles = []
         self.mainWidget.circle_packing = []
         self.mainWidget.dual_graph = False
         self.mainWidget.packing_trans = [np.array(((1, 0), (0, 1)), dtype='complex')]

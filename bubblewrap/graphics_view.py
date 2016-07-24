@@ -14,6 +14,12 @@ import numpy as np
 class glWidget(QGLWidget):
 
     def __init__(self, delegate):
+
+        formats = QGLFormat.defaultFormat()
+        formats.setSampleBuffers(True)
+        formats.setSamples(8)
+        QGLFormat.setDefaultFormat(formats)
+
         QGLWidget.__init__(self, None)
         self.mouse_pos = [-1e5, -1e5, -1e5, -1e5]
         self.rX = 0
@@ -35,7 +41,7 @@ class glWidget(QGLWidget):
         glRotate(self.rX, 1, 0, 0)
         glRotate(self.rY, 0, 1, 0)
         glRotate(self.rZ, 0, 0, 1)
-        glColor3f(1.0, 0.0, 0.0)
+        glColor3f(0.0, 0.0, 0.0)
         glPolygonMode(GL_FRONT, GL_LINE)
         glPolygonMode(GL_BACK, GL_LINE)
 
@@ -88,6 +94,7 @@ class glWidget(QGLWidget):
         glClearDepth(1.0)
         glDepthFunc(GL_LESS)
         glEnable(GL_DEPTH_TEST)
+        glEnable(GL_MULTISAMPLE)
         glShadeModel(GL_SMOOTH)
         glClearColor(0.9, 0.9, 0.9, 1.0)
 
@@ -102,7 +109,11 @@ class glWidget(QGLWidget):
         glLoadIdentity()
         aspect = self.width() / self.height()
         gluPerspective(self.zoom, aspect, 0.1, 100.0)
-        glMatrixMode(GL_MODELVIEW)
+        try:
+            glMatrixMode(GL_MODELVIEW)
+        except(Exception):
+            print("zoomed in too much!!")
+
 
 class MyScene(QWidget):
     def __init__(self, delegate, parent=None):
@@ -110,7 +121,7 @@ class MyScene(QWidget):
         self.delegate = delegate
 
         # display_params (zoom, pos:[relative to center])
-        self.display_params = {"zoom": 200, "pos": [0, 0]}
+        self.display_params = {"zoom": 200, "pos": [0, 0], "start_pos": [0, 0]}
 
         self.dpad = TranslateWidget()
         self.izoom = PlusWidget()
@@ -144,23 +155,22 @@ class MyScene(QWidget):
         for ci in d.circles:
             m_circles.append((ci[0].transform_sl2(T), ci[1]))
 
+        # print off valence info
+        self.infoPanel.clearInfo()
+        valences = get_valence_dict(d.circles)
+        for k in valences:
+            self.infoPanel.addInfo("Valence %s" % k, "%s vertices" % valences[k])
+        if len(valences) == 0:
+            self.infoPanel.addInfo("Status", "no packing visible")
+
+
         # draw circles
-        v_to_c = {}
-        for c, v in m_circles:
-            v_to_c[v] = c
-
-        edges_to_draw = []
-        for cirs in d.circles:
-            try:
-                edges_to_draw += list(cirs[1].star())
-            except(Exception):
-                pass
-
-        # print(edges_to_draw)
         v_drawn = []
         e_drawn = []
-        #print("drawing")
         red_dist = [1e10, None, None]
+
+        edges_to_draw, v_to_c = parse_circles(m_circles)
+
         for edg in edges_to_draw:
             v = edg.src
             v2 = edg.next.src
@@ -172,37 +182,8 @@ class MyScene(QWidget):
                 cir2 = None
 
             if d.dual_graph and cir2 is not None and not cir.contains_infinity and edg.twin not in e_drawn:
-                e_drawn.append(edg)
-                if (cir.center.real - cir2.center.real) ** 2 + (cir.center.imag - cir2.center.imag) ** 2 <= (
-                        cir.radius + cir2.radius + 0.01) ** 2:
+                draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, self.center, qp, self.mp)
 
-                    ax, ay, bx, by, mx, my = self.center[0] + offset[0] + zoom * cir.center.real, self.center[
-                        1] + offset[1] + zoom * cir.center.imag, \
-                                             self.center[0] + offset[0] + zoom * cir2.center.real, self.center[
-                                                 1] + offset[1] + zoom * cir2.center.imag, self.mp[0] + self.center[0], self.mp[1] + \
-                                             self.center[1]
-
-                    bias = 10
-                    qp.setPen(Qt.black)
-                    if (ax + bias > mx > bx - bias or ax - bias < mx < bx + bias) and (
-                                    ay + bias > my > by - bias or ay - bias < my < by + bias):
-                        d1 = ax - bx, ay - by
-                        d2 = ax - mx, ay - my
-                        a1 = math.atan2(d1[1], d1[0])
-                        a2 = math.atan2(d2[1], d2[0])
-                        da = abs(a1 - a2)
-                        dist = math.sin(da) * sqrt(d2[0] ** 2 + d2[1] ** 2)
-                        if dist < bias and dist < red_dist[0]:
-                            if red_dist[1] is not None:
-                                rax, ray, rbx, rby = self.center[0] + 200 * red_dist[1].center.real, self.center[
-                                    1] + 200 * red_dist[1].center.imag, \
-                                                     self.center[0] + 200 * red_dist[2].center.real, self.center[
-                                                         1] + 200 * red_dist[2].center.imag
-                                qp.drawLine(rax, ray, rbx, rby)
-                            red_dist = [dist, cir, cir2]
-                            qp.setPen(Qt.red)
-
-                    qp.drawLine(ax, ay, bx, by)
             if v in v_drawn:
                 continue
             v_drawn.append(v)
@@ -251,6 +232,9 @@ class MyScene(QWidget):
     def mousePressEvent(self, mouse):
         d = self.delegate
 
+        self.display_params["start_pos"] = [self.display_params["pos"][0] - mouse.pos().x(),
+                                            self.display_params["pos"][1] - mouse.pos().y()]
+
         self.mp = mouse.pos().x()-self.center[0], mouse.pos().y()-self.center[1]
 
         if self.izoom.isHit(mouse):
@@ -273,6 +257,16 @@ class MyScene(QWidget):
 
         d.graphics.draw()
 
+    def mouseMoveEvent(self, mouse):
+        self.display_params["pos"][0] = self.display_params["start_pos"][0] + mouse.pos().x()
+        self.display_params["pos"][1] = self.display_params["start_pos"][1] + mouse.pos().y()
+        self.update()
+
+    def wheelEvent(self, event):
+        wheel_point = event.angleDelta()/30
+        self.display_params["zoom"] -= wheel_point.y()
+        self.update()
+
     @property
     def width(self):
         return self.frameSize().width()
@@ -285,6 +279,61 @@ class MyScene(QWidget):
     def center(self):
         return self.width / 2, self.height / 2
 
+def parse_circles(circles):
+    v_to_c = {}
+    for c, v in circles:
+        v_to_c[v] = c
+
+    edges_to_draw = []
+    for cirs in circles:
+        try:
+            edges_to_draw += list(cirs[1].star())
+        except(Exception):
+            pass
+    return edges_to_draw, v_to_c
+
+def draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, center, qp, mp):
+    e_drawn.append(edg)
+    if (cir.center.real - cir2.center.real) ** 2 + (cir.center.imag - cir2.center.imag) ** 2 <= (
+                    cir.radius + cir2.radius + 0.01) ** 2:
+
+        ax, ay, bx, by, mx, my = center[0] + offset[0] + zoom * cir.center.real, center[
+            1] + offset[1] + zoom * cir.center.imag, \
+                                 center[0] + offset[0] + zoom * cir2.center.real, center[
+                                     1] + offset[1] + zoom * cir2.center.imag, mp[0] + center[0], mp[1] + \
+                                 center[1]
+
+        # bias = 10
+        qp.setPen(Qt.black)
+        # if (ax + bias > mx > bx - bias or ax - bias < mx < bx + bias) and (
+        #                         ay + bias > my > by - bias or ay - bias < my < by + bias):
+        #     d1 = ax - bx, ay - by
+        #     d2 = ax - mx, ay - my
+        #     a1 = math.atan2(d1[1], d1[0])
+        #     a2 = math.atan2(d2[1], d2[0])
+        #     da = abs(a1 - a2)
+        #     dist = math.sin(da) * sqrt(d2[0] ** 2 + d2[1] ** 2)
+        #     if dist < bias and dist < red_dist[0]:
+        #         if red_dist[1] is not None:
+        #             rax, ray, rbx, rby = self.center[0] + 200 * red_dist[1].center.real, self.center[
+        #                 1] + 200 * red_dist[1].center.imag, \
+        #                                  self.center[0] + 200 * red_dist[2].center.real, self.center[
+        #                                      1] + 200 * red_dist[2].center.imag
+        #             qp.drawLine(rax, ray, rbx, rby)
+        #         red_dist = [dist, cir, cir2]
+        #         qp.setPen(Qt.red)
+
+        qp.drawLine(ax, ay, bx, by)
+
+def get_valence_dict(circles):
+    from collections import defaultdict
+    verts_of_valence = defaultdict(int)
+    for c in circles:
+        if c[1] is not None:
+            verts_of_valence[c[1].valence] += 1
+    for k in verts_of_valence:
+        print(verts_of_valence[k], 'vertices of valence', k)
+    return dict(verts_of_valence)
 
 class ControlGraphics:
 
@@ -300,7 +349,7 @@ class ControlGraphics:
         #self.delegate.m_dcel = cylinder_of_revolution(10, 10, vcenter=None, rad=15, height=40)
 
         self.delegate.opengl = glWidget(self.delegate)
-        self.delegate.opengl.setContentsMargins(0,0,0,0)
+        self.delegate.opengl.setContentsMargins(0, 0, 0, 0)
         self.delegate.scene2 = MyScene(self.delegate)
         self.delegate.scene2.setContentsMargins(0, 0, 0, 0)
 

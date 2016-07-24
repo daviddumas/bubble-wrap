@@ -129,6 +129,10 @@ class InfoWidget(BaseWidget):
                 self.max_width = ww
         self.target.setWidth(self.max_width+self.margins*2)
 
+    def clearInfo(self):
+        self.target.setHeight(self.margins*2)
+        self.info_panels = OrderedDict()
+
     def draw(self, QPainter):
         QPainter.fillRect(self.target, QColor(0, 0, 0, 200))
         QPainter.setPen(Qt.white)
