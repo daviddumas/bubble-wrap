@@ -13,6 +13,8 @@ from PyQt5.QtWidgets import *
 from calculation_view import ControlCalculations
 from graphics_view import ControlGraphics
 from openpacking import openPacking
+from canvas3d import circular_torus_of_revolution, cylinder_of_revolution
+import tools
 
 V_NUM = "0.1"
 
@@ -42,12 +44,18 @@ class Form(QMainWindow):
         openAction.setStatusTip('Open File')
         openAction.triggered.connect(self.openNew)
 
+        newAction = QAction('&New', self)
+        newAction.setShortcut('Ctrl+N')
+        newAction.setStatusTip('Create a New Object')
+        newAction.triggered.connect(self.createNew)
+
         menubar = self.menuBar()
         menubar.setNativeMenuBar(False)
         fileMenu = menubar.addMenu('&File')
 
-        fileMenu.addAction(exitAction)
+        fileMenu.addAction(newAction)
         fileMenu.addAction(openAction)
+        fileMenu.addAction(exitAction)
 
         # self.topFiller = QWidget(parent)
         # self.topFiller.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -57,7 +65,7 @@ class Form(QMainWindow):
         # Bind Data Structures
         self.mainWidget.m_dcel = None
         self.mainWidget.circles = []
-        self.mainWidget.circle_packing = []
+        self.mainWidget.opened_dcel = None
         self.mainWidget.dual_graph = False
         self.mainWidget.packing_trans = [np.array(((1, 0), (0, 1)), dtype='complex')]
 
@@ -67,6 +75,20 @@ class Form(QMainWindow):
 
     def openNew(self):
         openPacking(self, lambda: self.mainWidget.graphics.draw())
+
+    def createNew(self):
+        surfaces = ("Cylinder", "Torus", "Genus 2 Surface")
+        surface_selected = tools.showDropdownDialog(self, surfaces, "Select a surface to create")
+        print("Surface selected: %s" % surfaces[surface_selected])
+        # create the selected DCEL surface
+        if surface_selected == 0:
+            self.mainWidget.m_dcel = cylinder_of_revolution(10, 10, rad=1, height=2)
+        elif surface_selected == 1:
+            self.mainWidget.m_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
+        elif surface_selected == 2:
+            print("Currently unable to create a Genus 2 surface.")
+
+        self.mainWidget.graphics.draw()
 
 
     def resizeEvent(self, QResizeEvent):

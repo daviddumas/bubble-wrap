@@ -31,7 +31,7 @@ def openPacking(parent, ondone):
     except(Exception):
         odict = OrderedDict.fromkeys(sorted(P))
 
-    mkey = showListDialog(parent, odict)
+    mkey = showListDialog(parent, odict, "Select a Packing")
     if isinstance(mkey, int) and mkey == -1:
         return
     X0 = P[mkey]
@@ -91,6 +91,7 @@ def openPacking(parent, ondone):
             v0 = ch[-1].src
             dev_circles.append([c1, v0])
     parent.mainWidget.circles = list(dev_circles)
+    parent.mainWidget.opened_dcel = D
 
 
 

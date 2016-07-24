@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtOpenGL import *
 from widgets import *
 from math import sqrt, sin, cos
-from canvas3d import EmbeddedDCEL, circular_torus_of_revolution, cylinder_of_revolution
+from canvas3d import circular_torus_of_revolution, cylinder_of_revolution
 import numpy as np
 
 
@@ -30,7 +30,7 @@ class glWidget(QGLWidget):
         self.btn = 0
 
         self.zoom = 45
-        self.m_dcel = delegate.m_dcel
+        self.delegate = delegate
 
     def paintGL(self):
 
@@ -45,7 +45,7 @@ class glWidget(QGLWidget):
         glPolygonMode(GL_FRONT, GL_LINE)
         glPolygonMode(GL_BACK, GL_LINE)
 
-        self.m_dcel.paintGL()
+        self.delegate.m_dcel.paintGL()
 
         # posx, posy = 0, 0
         # sides = 32
@@ -169,7 +169,7 @@ class MyScene(QWidget):
         e_drawn = []
         red_dist = [1e10, None, None]
 
-        edges_to_draw, v_to_c = parse_circles(m_circles)
+        edges_to_draw, v_to_c = parse_circles(m_circles, d.opened_dcel)
 
         for edg in edges_to_draw:
             v = edg.src
@@ -279,18 +279,12 @@ class MyScene(QWidget):
     def center(self):
         return self.width / 2, self.height / 2
 
-def parse_circles(circles):
+def parse_circles(circles, D):
     v_to_c = {}
     for c, v in circles:
         v_to_c[v] = c
 
-    edges_to_draw = []
-    for cirs in circles:
-        try:
-            edges_to_draw += list(cirs[1].star())
-        except(Exception):
-            pass
-    return edges_to_draw, v_to_c
+    return D.UE if D is not None else [], v_to_c
 
 def draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, center, qp, mp):
     e_drawn.append(edg)
@@ -331,8 +325,8 @@ def get_valence_dict(circles):
     for c in circles:
         if c[1] is not None:
             verts_of_valence[c[1].valence] += 1
-    for k in verts_of_valence:
-        print(verts_of_valence[k], 'vertices of valence', k)
+    # for k in verts_of_valence:
+    #     print(verts_of_valence[k], 'vertices of valence', k)
     return dict(verts_of_valence)
 
 class ControlGraphics:
