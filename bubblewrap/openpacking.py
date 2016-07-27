@@ -6,6 +6,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from tools import *
 import numpy as np
+import cmath
 from collections import OrderedDict
 
 from cpps import serialization as ser, dcel, cocycles, mobius, circle
@@ -50,6 +51,8 @@ def openPacking(parent, ondone):
            'a2': conjugate(rho0['a2'], rho0['b2']),
            'b2': rho0['b2']}
 
+    print("RHO:", rho0['a1'])
+
     print('This should be the identity matrix:')
     print(commutator(rho['a1'], rho['b1']).dot(commutator(rho['a2'], rho['b2'])))
 
@@ -73,6 +76,11 @@ def openPacking(parent, ondone):
 
     print('Computing circle positions...')
 
+    # pared_wordlist = ["%s%s%s"%(a, b, c) for a in possi for b in possi for c in possi] + ["%s%s"%(a, b) for a in possi for b in possi] + ["%s"%a for a in possi]
+    # pared_wordlist = ["kK", "C", "D", "CC", "Cd", "CD", "CB"]
+
+    # print(pared_wordlist)
+
     echains = dcel.edge_chain_dfs(D, chains['t1'][0])
     vchains = set()
     vert_seen = set()
@@ -80,66 +88,73 @@ def openPacking(parent, ondone):
         if ch[-1].src not in vert_seen:
             vert_seen.add(ch[-1].src)
             vchains.add(ch)
-    c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
-    dev_pairs = set()  # Will store (chain,holonomy word) pairs for general pictures later
-    dev_circles = []  # Will store circles for the Fuchsian (KAT) picture
-    centers = dict()
-    for ch in vchains:
-        h = D.hol(ch, X0)
-        c1 = c0.transform_gl2(h).transform_sl2(mnormKAT)
-        if not c1.contains_infinity and c1.radius > 0.005 or c1.contains_infinity:
-            v0 = ch[-1].src
-            dev_circles.append([c1, v0])
-    parent.mainWidget.circles = list(dev_circles)
+
+    findwords = FindWordsThread(parent, vchains, D, X0, Rho, mnormKAT)
+    findwords.start()
+
     parent.mainWidget.opened_dcel = D
 
 
-
-
-    # def commutator(a, b):
-    #     return a.dot(b).dot(mobius.sl2inv(a)).dot(mobius.sl2inv(b))
-    #
-    # def conjugate(inner, outer):
-    #     return mobius.sl2inv(outer).dot(inner).dot(outer)
-    #
-    # recip = np.array([[0, 1j], [1j, 0]])
-    #
-    # rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'a2', 'b1', 'b2']}
-    # rho = {'a1': rho0['a1'],
-    #        'b1': rho0['b1'],
-    #        'a2': conjugate(rho0['a2'], rho0['b2']),
-    #        'b2': rho0['b2']}
-    #
-    # print('Computing circle positions...')
-    #
-    # echains = dcel.edge_chain_dfs(D, chains['t1'][0])
-    # vchains = set()
-    # vert_seen = set()
-    # for ch in echains:
-    #     if ch[-1].src not in vert_seen:
-    #         vert_seen.add(ch[-1].src)
-    #         vchains.add(ch)
-    # c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
-    # dev_chains = set()  # Will store (chain,holonomy word) pairs for general pictures later
-    # for ch in vchains:
-    #     h = D.hol(ch, X0)
-    #     c = c0.transform_gl2(h)
-    #     if not c.contains_infinity and c.radius > .005:
-    #         dev_chains.add(ch)
-    #
-    #
-    # fc = mobius.fix(commutator(rho['a1'], rho['b1']))
-    # fa1 = mobius.fix(rho['a1'])
-    # fa2 = mobius.fix(rho['a2'])
-    # mnorm = mobius.center_four_points(fc[0], fa1[0], fc[1], fa2[0])
-    # mnorm = recip.dot(mnorm)
-    # output_circles = []
-    # for ch in dev_chains:
-    #     h = D.hol(ch, X0)
-    #     c = c0.transform_gl2(h).transform_sl2(mnorm)
-    #     if c.radius > .005:
-    #         output_circles.append(c)
-    #         print('Generated %d circles' % len(output_circles))
-    # parent.mainWidget.circles = output_circles
-
     ondone()
+
+
+"""
+The AnimationThread class animates transformations smoothly.
+
+note that `self.parent().draw_trigger.emit()` is what updates the graphics
+"""
+
+
+class FindWordsThread(QThread):
+    def __init__(self, parent, vchains, D, X0, Rho, mnormKAT):
+        super().__init__(parent)
+
+        self.vchains = vchains
+        self.D = D
+        self.X0 = X0
+        self.Rho = Rho
+        self.mnormKAT = mnormKAT
+
+    def run(self):
+        possi = "aAbBcCdDkK"
+
+        def getNormCenter(c):
+            if c.contains_infinity:
+                return complex(10e8, 10e8)
+            return complex(int(c.center.real * 1000000) / 1000000.0, int(c.center.imag * 1000000) / 1000000.0)
+
+        c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
+
+        self.parent().mainWidget.circles = []  # Will store circles for the Fuchsian (KAT) picture
+        centers = []
+
+        for ch in self.vchains:
+            h = self.D.hol(ch, self.X0)
+            c1 = c0.transform_gl2(h)
+
+            def testConfig(w):
+                # print("testing",w)
+                c = c1.transform_sl2(self.Rho[w]).transform_sl2(self.mnormKAT)
+                if getNormCenter(c) not in centers:
+                    centers.append(getNormCenter(c))
+                    if not c.contains_infinity and np.abs(c.radius) > 0.01 or c.contains_infinity:
+                        v0 = ch[-1].src
+                        self.parent().mainWidget.circles.append([c, v0])
+
+                    if not c.contains_infinity and np.abs(c.radius) < 0.0002:
+                        return False
+
+                    return True
+                # print("BAD")
+                return False
+
+            def findWord(w="", n=7):
+                if n > 0:
+                    for w_n in possi:
+                        if testConfig(w + w_n):
+                            findWord(w + w_n, n - 1)
+                        # elif testConfig(w_n + w):
+                        #     findWord(w_n + w, n - 1)
+
+            findWord()
+            self.parent().draw_trigger.emit()

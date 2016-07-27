@@ -19,8 +19,13 @@ import tools
 V_NUM = "0.1"
 
 
-
 class Form(QMainWindow):
+    draw_trigger = pyqtSignal()
+
+    @property
+    def draw_trigger2(self):
+        return self.draw_trigger
+
     def __init__(self, parent=None):
         super(Form, self).__init__(parent)
         self.setContentsMargins(0,0,0,0)
@@ -72,6 +77,8 @@ class Form(QMainWindow):
         # Connect Controllers
         self.mainWidget.graphics = ControlGraphics(self.mainWidget)
         self.mainWidget.calculations = ControlCalculations(self.mainWidget)
+
+        self.draw_trigger.connect(self.mainWidget.graphics.draw)
 
     def openNew(self):
         openPacking(self, lambda: self.mainWidget.graphics.draw())

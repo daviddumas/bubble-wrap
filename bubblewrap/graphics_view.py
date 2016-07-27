@@ -24,10 +24,10 @@ class glWidget(QGLWidget):
 
         QGLWidget.__init__(self, None)
         self.mouse_pos = [-1e5, -1e5, -1e5, -1e5]
-        self.rX = 0
+        self.rX = 45
         self.rY = 0
         self.rZ = 0
-        self.diff = (0, 0, 0)
+        self.diff = (45, 0, 0)
 
         self.btn = 0
 
@@ -43,10 +43,16 @@ class glWidget(QGLWidget):
         GL.glRotate(self.rX, 1, 0, 0)
         GL.glRotate(self.rY, 0, 1, 0)
         GL.glRotate(self.rZ, 0, 0, 1)
-        GL.glColor3f(0.0, 0.0, 0.0)
-        GL.glPolygonMode(GL.GL_FRONT, GL.GL_LINE)
-        GL.glPolygonMode(GL.GL_BACK, GL.GL_LINE)
+        GL.glColor4f(0.0, 0.0, 0.0, 0.2)
 
+        GL.glPolygonMode(GL.GL_FRONT, GL.GL_FILL)
+        GL.glPolygonMode(GL.GL_BACK, GL.GL_LINE)
+        self.delegate.m_dcel.paintGL()
+
+
+        GL.glColor4f(0.0, 0.0, 0.0, 1)
+
+        GL.glPolygonMode(GL.GL_FRONT, GL.GL_LINE)
         self.delegate.m_dcel.paintGL()
 
         # posx, posy = 0, 0
@@ -77,8 +83,6 @@ class glWidget(QGLWidget):
 
     def mouseMoveEvent(self, mouse):
         self.mouse_pos[2:3] = mouse.pos().x(), mouse.pos().y()
-
-        print(mouse.button())
         if self.btn == Qt.LeftButton:
             self.rX = self.diff[0] + self.mouse_pos[3] - self.mouse_pos[1]
             self.rY = self.diff[1] + self.mouse_pos[2] - self.mouse_pos[0]
@@ -97,6 +101,8 @@ class glWidget(QGLWidget):
         GL.glDepthFunc(GL.GL_LESS)
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glEnable(GL.GL_MULTISAMPLE)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
         GL.glShadeModel(GL.GL_SMOOTH)
         GL.glClearColor(0.9, 0.9, 0.9, 1.0)
 
@@ -118,7 +124,6 @@ class glWidget(QGLWidget):
             GL.glMatrixMode(GL.GL_MODELVIEW)
         except(Exception):
             print("zoomed in too much!!")
-
 
 class MyScene(QWidget):
     def __init__(self, delegate, parent=None):
@@ -176,7 +181,35 @@ class MyScene(QWidget):
 
         edges_to_draw, v_to_c = parse_circles(m_circles, d.opened_dcel)
 
+        for c in m_circles:
+            cir = c[0]
+            v = c[1]
+            if not cir.contains_infinity:
+                # add ellipses to an array for optimization
+                if v.valence > 6:
+                    qp.setPen(Qt.red)
+                else:
+                    qp.setPen(Qt.black)
+
+                qp.drawEllipse(self.center[0] + offset[0] + zoom * (cir.center.real - cir.radius),
+                               self.center[1] + offset[1] + zoom * (cir.center.imag - cir.radius),
+                               zoom * (cir.radius * 2), zoom * (cir.radius * 2))
+            else:
+                # creates a straight line
+                x = self.center[0] + cir.line_base.real
+                y = self.center[1] + cir.line_base.imag
+                size = sqrt(cir.line_base.real ** 2 + cir.line_base.imag ** 2)
+                scrSizeAvg = (self.width + self.height) / 2
+                size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
+                # Draw the line out from the line_base in either direction
+                qp.drawLine(x - size * cos(cir.line_angle), y - size * sin(cir.line_angle),
+                            x + size * cos(cir.line_angle), y + size * sin(cir.line_angle))
+                print(cir.line_base, cir.line_angle)
+
+
+
         for edg in edges_to_draw:
+            break
             v = edg.src
             v2 = edg.next.src
 
@@ -191,9 +224,9 @@ class MyScene(QWidget):
             if d.dual_graph and cir2 is not None and not cir.contains_infinity and edg.twin not in e_drawn:
                 draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, self.center, qp, self.mp)
 
-            if v in v_drawn:
-                continue
-            v_drawn.append(v)
+            # if v in v_drawn:
+            #     continue
+            # v_drawn.append(v)
 
             if not cir.contains_infinity:
                 # add ellipses to an array for optimization
