@@ -1,7 +1,9 @@
 # Installation command:
 # pip3 install PyOpenGL PyOpenGL_accelerate
 
-from OpenGL.GL import *
+import platform
+
+from OpenGL import GL
 from OpenGL.GLU import gluPerspective
 from PyQt5.QtWidgets import *
 from PyQt5.QtOpenGL import *
@@ -34,16 +36,16 @@ class glWidget(QGLWidget):
 
     def paintGL(self):
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
+        GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+        GL.glLoadIdentity()
 
-        glTranslatef(0, 0, -6)
-        glRotate(self.rX, 1, 0, 0)
-        glRotate(self.rY, 0, 1, 0)
-        glRotate(self.rZ, 0, 0, 1)
-        glColor3f(0.0, 0.0, 0.0)
-        glPolygonMode(GL_FRONT, GL_LINE)
-        glPolygonMode(GL_BACK, GL_LINE)
+        GL.glTranslatef(0, 0, -6)
+        GL.glRotate(self.rX, 1, 0, 0)
+        GL.glRotate(self.rY, 0, 1, 0)
+        GL.glRotate(self.rZ, 0, 0, 1)
+        GL.glColor3f(0.0, 0.0, 0.0)
+        GL.glPolygonMode(GL.GL_FRONT, GL.GL_LINE)
+        GL.glPolygonMode(GL.GL_BACK, GL.GL_LINE)
 
         self.delegate.m_dcel.paintGL()
 
@@ -61,7 +63,7 @@ class glWidget(QGLWidget):
         #
         # glEnd()
 
-        glFlush()
+        GL.glFlush()
 
     def wheelEvent(self, event):
         wheel_point = event.angleDelta()/60
@@ -91,12 +93,12 @@ class glWidget(QGLWidget):
 
     def initializeGL(self):
 
-        glClearDepth(1.0)
-        glDepthFunc(GL_LESS)
-        glEnable(GL_DEPTH_TEST)
-        glEnable(GL_MULTISAMPLE)
-        glShadeModel(GL_SMOOTH)
-        glClearColor(0.9, 0.9, 0.9, 1.0)
+        GL.glClearDepth(1.0)
+        GL.glDepthFunc(GL.GL_LESS)
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glEnable(GL.GL_MULTISAMPLE)
+        GL.glShadeModel(GL.GL_SMOOTH)
+        GL.glClearColor(0.9, 0.9, 0.9, 1.0)
 
         self.fix_size()
 
@@ -104,13 +106,16 @@ class glWidget(QGLWidget):
         self.fix_size()
 
     def fix_size(self):
+        side = min(self.width(), self.height())
+        GL.glViewport((self.width() - side) // 2, (self.height() - side) // 2, side, side)
+
         # fixes aspect and size of viewport when viewport is resized
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        aspect = self.width() / self.height()
+        GL.glMatrixMode(GL.GL_PROJECTION)
+        GL.glLoadIdentity()
+        aspect = self.width() / self.height() if platform.system() == 'Darwin' else 1
         gluPerspective(self.zoom, aspect, 0.1, 100.0)
         try:
-            glMatrixMode(GL_MODELVIEW)
+            GL.glMatrixMode(GL.GL_MODELVIEW)
         except(Exception):
             print("zoomed in too much!!")
 
