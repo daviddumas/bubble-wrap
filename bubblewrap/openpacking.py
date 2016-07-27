@@ -116,45 +116,58 @@ class FindWordsThread(QThread):
         self.mnormKAT = mnormKAT
 
     def run(self):
-        possi = "aAbBcCdDkK"
 
         def getNormCenter(c):
             if c.contains_infinity:
                 return complex(10e8, 10e8)
-            return complex(int(c.center.real * 1000000) / 1000000.0, int(c.center.imag * 1000000) / 1000000.0)
+            return complex(int(c.center.real * 100000) / 100000, int(c.center.imag * 100000) / 100000)
 
         c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
 
         self.parent().mainWidget.circles = []  # Will store circles for the Fuchsian (KAT) picture
         centers = []
+        omit_centers = []
 
+        # First add the Fundamental Domain
+        for ch in self.vchains:
+            h = self.D.hol(ch, self.X0)
+            c1 = c0.transform_gl2(h).transform_sl2(self.mnormKAT)
+            v0 = ch[-1].src
+            self.parent().mainWidget.circles.append([c1, v0])
+            omit_centers.append(getNormCenter(c1))
+
+        # Then find the surrounding circles through holonomy
         for ch in self.vchains:
             h = self.D.hol(ch, self.X0)
             c1 = c0.transform_gl2(h)
 
             def testConfig(w):
-                # print("testing",w)
                 c = c1.transform_sl2(self.Rho[w]).transform_sl2(self.mnormKAT)
                 if getNormCenter(c) not in centers:
                     centers.append(getNormCenter(c))
-                    if not c.contains_infinity and np.abs(c.radius) > 0.01 or c.contains_infinity:
+                    if getNormCenter(c) not in omit_centers and \
+                            not c.contains_infinity and \
+                                    np.abs(c.radius) >= 0.005 or c.contains_infinity:
                         v0 = ch[-1].src
                         self.parent().mainWidget.circles.append([c, v0])
 
-                    if not c.contains_infinity and np.abs(c.radius) < 0.0002:
+                    if not c.contains_infinity and np.abs(c.radius) < 0.00025:
                         return False
 
                     return True
-                # print("BAD")
+
                 return False
 
-            def findWord(w="", n=7):
+            def find_word(w_list="aAbBcCdDkK", w="", n=7):
+                """
+                finds as many 'words' as possible to fill the circle packing
+                :param w: current word
+                :param n: recursion depth
+                """
                 if n > 0:
-                    for w_n in possi:
+                    for w_n in w_list:
                         if testConfig(w + w_n):
-                            findWord(w + w_n, n - 1)
-                        # elif testConfig(w_n + w):
-                        #     findWord(w_n + w, n - 1)
+                            find_word(w_list, w + w_n, n - 1)
 
-            findWord()
+            find_word()
             self.parent().draw_trigger.emit()

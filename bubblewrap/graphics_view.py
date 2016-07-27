@@ -184,7 +184,7 @@ class MyScene(QWidget):
         for c in m_circles:
             cir = c[0]
             v = c[1]
-            if not cir.contains_infinity:
+            if not cir.contains_infinity and np.abs(zoom * cir.radius) > 2:
                 # add ellipses to an array for optimization
                 if v.valence > 6:
                     qp.setPen(Qt.red)
@@ -194,7 +194,7 @@ class MyScene(QWidget):
                 qp.drawEllipse(self.center[0] + offset[0] + zoom * (cir.center.real - cir.radius),
                                self.center[1] + offset[1] + zoom * (cir.center.imag - cir.radius),
                                zoom * (cir.radius * 2), zoom * (cir.radius * 2))
-            else:
+            elif cir.contains_infinity:
                 # creates a straight line
                 x = self.center[0] + cir.line_base.real
                 y = self.center[1] + cir.line_base.imag
@@ -280,9 +280,15 @@ class MyScene(QWidget):
         if self.izoom.isHit(mouse):
             # zoom in
             self.display_params["zoom"] *= 1.5
+            # keeps circle packing centered when zooming
+            self.display_params["pos"][0] *= 1.5
+            self.display_params["pos"][1] *= 1.5
         elif self.ozoom.isHit(mouse):
             # zoom out
             self.display_params["zoom"] /= 1.5
+            # keeps circle packing centered when zooming
+            self.display_params["pos"][0] /= 1.5
+            self.display_params["pos"][1] /= 1.5
 
         trans = self.dpad.isHit(mouse)
 
@@ -303,8 +309,13 @@ class MyScene(QWidget):
         self.update()
 
     def wheelEvent(self, event):
-        wheel_point = event.angleDelta()/30
-        self.display_params["zoom"] -= wheel_point.y()
+        wheel_point = event.angleDelta()/60
+
+        self.display_params["zoom"] *= 1.2**wheel_point.y()
+        # keeps circle packing centered when zooming
+        self.display_params["pos"][0] *= 1.2**wheel_point.y()
+        self.display_params["pos"][1] *= 1.2**wheel_point.y()
+
         self.update()
 
     @property
