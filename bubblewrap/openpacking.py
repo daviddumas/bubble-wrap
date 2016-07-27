@@ -87,7 +87,7 @@ def openPacking(parent, ondone):
     for ch in vchains:
         h = D.hol(ch, X0)
         c1 = c0.transform_gl2(h).transform_sl2(mnormKAT)
-        if not c1.contains_infinity and c1.radius > 0.005:
+        if not c1.contains_infinity and c1.radius > 0.005 or c1.contains_infinity:
             v0 = ch[-1].src
             dev_circles.append([c1, v0])
     parent.mainWidget.circles = list(dev_circles)

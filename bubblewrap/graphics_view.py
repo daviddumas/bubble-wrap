@@ -126,7 +126,7 @@ class MyScene(QWidget):
         self.delegate = delegate
 
         # display_params (zoom, pos:[relative to center])
-        self.display_params = {"zoom": 200, "pos": [0, 0], "start_pos": [0, 0]}
+        self.display_params = {"zoom": 100, "pos": [0, 0], "start_pos": [0, 0]}
 
         self.dpad = TranslateWidget()
         self.izoom = PlusWidget()
@@ -180,6 +180,8 @@ class MyScene(QWidget):
             v = edg.src
             v2 = edg.next.src
 
+            if v not in v_to_c:
+                continue
             cir = v_to_c[v]
             if v2 in v_to_c:
                 cir2 = v_to_c[v2]
