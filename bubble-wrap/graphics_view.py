@@ -43,12 +43,12 @@ class glWidget(QGLWidget):
         GL.glRotate(self.rX, 1, 0, 0)
         GL.glRotate(self.rY, 0, 1, 0)
         GL.glRotate(self.rZ, 0, 0, 1)
+
         GL.glColor4f(0.0, 0.0, 0.0, 0.2)
 
         GL.glPolygonMode(GL.GL_FRONT, GL.GL_FILL)
         GL.glPolygonMode(GL.GL_BACK, GL.GL_LINE)
         self.delegate.m_dcel.paintGL()
-
 
         GL.glColor4f(0.0, 0.0, 0.0, 1)
 
@@ -99,11 +99,11 @@ class glWidget(QGLWidget):
 
         GL.glClearDepth(1.0)
         GL.glDepthFunc(GL.GL_LESS)
-        GL.glEnable(GL.GL_DEPTH_TEST)
+        #GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glEnable(GL.GL_MULTISAMPLE)
+        GL.glShadeModel(GL.GL_SMOOTH)
         GL.glEnable(GL.GL_BLEND)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        GL.glShadeModel(GL.GL_SMOOTH)
         GL.glClearColor(0.9, 0.9, 0.9, 1.0)
 
         self.fix_size()
@@ -184,7 +184,7 @@ class MyScene(QWidget):
         for c in m_circles:
             cir = c[0]
             v = c[1]
-            if not cir.contains_infinity and np.abs(zoom * cir.radius) > 2:
+            if not cir.contains_infinity and np.abs(zoom * cir.radius) > 1:
                 # add ellipses to an array for optimization
                 if v.valence > 6:
                     qp.setPen(Qt.red)
