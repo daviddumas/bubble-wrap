@@ -3,7 +3,7 @@
 main.py
 """
 
-__version__ = "0.15"
+__version__ = "0.2"
 
 import sys
 
@@ -37,7 +37,7 @@ class Form(QMainWindow):
         self.setCentralWidget(self.mainWidget)
         uic.loadUi('ui/widget.ui', self.mainWidget)
         # Set the title/name of the frame
-        self.setWindowTitle('CPPS UI From XML Example v%s' % __version__)
+        self.setWindowTitle("Bubble Wrap {}".format(__version__))
 
         # >>> ACTIONS <<<
         exitAction = QAction('&Exit', self)
