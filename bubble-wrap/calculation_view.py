@@ -136,9 +136,9 @@ class ControlCalculations(QObject):
 
         # Bind the buttons from the UI
         self.bind_btn(delegate.testbtn1)
-        self.bind_btn(delegate.testbtn2)
+        self.bind_btn(delegate.invert_pack_btn)
         self.bind_btn(delegate.testbtn3)
-        self.bind_btn(delegate.testbtn4)
+        self.bind_btn(delegate.reset_trans_btn)
         self.bind_btn(delegate.solve_btn)
         self.bind_btn(delegate.dual_graph_btn)
         self.adjustCircles(16)
@@ -164,12 +164,12 @@ class ControlCalculations(QObject):
         d = self.delegate
         if btn == d.testbtn1:
             self.adjust_all(T)
-        elif btn == d.testbtn2:
-            self.adjust_all(np.linalg.inv(T))
-
         elif btn == d.testbtn3:
             self.animate_all(T)
-        elif btn == d.testbtn4:
+
+        elif btn == d.invert_pack_btn:
+            self.animate_all(np.array([[0, 1j], [1j, 0]]))
+        elif btn == d.reset_trans_btn:
             self.animate_all(np.linalg.inv(d.packing_trans[0]))
 
         elif btn == d.dual_graph_btn:

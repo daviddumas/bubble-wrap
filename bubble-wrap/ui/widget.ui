@@ -153,7 +153,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="testbtn2">
+        <widget class="QPushButton" name="invert_pack_btn">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -176,7 +176,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="text">
-          <string>undo transform</string>
+          <string>invert packing</string>
          </property>
          <property name="flat">
           <bool>false</bool>
@@ -184,7 +184,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="testbtn4">
+        <widget class="QPushButton" name="reset_trans_btn">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
            <horstretch>0</horstretch>
