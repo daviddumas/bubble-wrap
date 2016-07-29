@@ -1,31 +1,28 @@
 """Find the KAT point for a genus two surface and save it"""
 
-import sys
+import cpps.circle as circle
+import cpps.cocycles as cocycles
+import cpps.dcel as dcel
+import cpps.mobius as mobius
+import cpps.serialization as ser
+import cpps.triangulations as triangulations
 import numpy as np
 
-
-from collections import defaultdict
-import cpps.dcel as dcel
-import cpps.triangulations as triangulations
-import cpps.lsons as lsons
-import cpps.circle as circle
-import cpps.mobius as mobius
-import cpps.cocycles as cocycles
-import cpps.serialization as ser
+import lsons as lsons
 
 np.set_printoptions(suppress=True)
 
-mD1,t1,b1 = triangulations.cylinder(5,5)
+mD1,t1,b1 = triangulations.cylinder(5, 5)
 t1stop = t1.boundary_forward(1)
-dcel.glue_boundary(mD1,t1,b1,t1stop)
+dcel.glue_boundary(mD1, t1, b1, t1stop)
 
-mD2,t2,b2 = triangulations.cylinder(5,5)
+mD2,t2,b2 = triangulations.cylinder(5, 5)
 t2stop = t2.boundary_forward(1)
-dcel.glue_boundary(mD2,t2,b2,t2stop)
+dcel.glue_boundary(mD2, t2, b2, t2stop)
 
 dcel.reverse_orientation(mD2)
 mD = mD1 | mD2
-dcel.glue_boundary(mD,t1stop,t2stop)
+dcel.glue_boundary(mD, t1stop, t2stop)
 
 # Freeze and index the DCEL
 D = cocycles.InterstitialDCEL(mD)
@@ -126,7 +123,7 @@ def KAT_fun(LX):
                          ])
     return np.append(Yv,hol_precond*np.imag(tracevec))
 
-KAT_jac = lambda x:lsons.numjac(KAT_fun,x)
+KAT_jac = lambda x: lsons.numjac(KAT_fun, x)
 
 
 def max_endpoint_valence(e):
@@ -139,10 +136,10 @@ def large_norm_quit(x,y,n):
     if n > 1e7:
         raise Exception('Norm too large')
 
-X0 = np.array([ circle.steiner_chain_xratio(max_endpoint_valence(e)) for e in D.UE ])
+X0 = np.array([circle.steiner_chain_xratio(max_endpoint_valence(e)) for e in D.UE])
 LX0 = np.log(X0)
-LX = lsons.lsroot(KAT_fun,KAT_jac,LX0,maxcond=1e20,maxiter=200,relax=0.6,normgoal=np.sqrt(len(X0)),verbose=True,monitor=large_norm_quit)
-LX = lsons.lsroot(KAT_fun,KAT_jac,LX,maxcond=1e20,maxiter=200,relax=1.0,normgoal=1e-10*np.sqrt(len(X0)),verbose=True,monitor=large_norm_quit)
+LX = lsons.lsroot(KAT_fun, KAT_jac, LX0, maxcond=1e20, maxiter=200, relax=0.6, normgoal=np.sqrt(len(X0)), verbose=True, monitor=large_norm_quit)
+LX = lsons.lsroot(KAT_fun, KAT_jac, LX, maxcond=1e20, maxiter=200, relax=1.0, normgoal=1e-10 * np.sqrt(len(X0)), verbose=True, monitor=large_norm_quit)
 X = np.exp(LX)
 
 # Report a bit about the holonomy

@@ -2,14 +2,17 @@
 Open a Circle Packing from a *.cpz file
 """
 
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
-from tools import *
-import numpy as np
-import cmath
 from collections import OrderedDict
 
-from cpps import serialization as ser, dcel, cocycles, mobius, circle
+import numpy as np
+
+import cocycles
+import serialization as ser
+import dcel
+import mobius
+import circle
+from tools import *
+
 
 def openPacking(parent, ondone):
     file = QFileDialog.getOpenFileName(parent=parent)
@@ -38,6 +41,15 @@ def openPacking(parent, ondone):
     X0 = P[mkey]
 
     # SOLVE
+    if "a2" in chains:
+        # genus 2
+        open_genus2(parent, D, chains, X0, ondone=ondone)
+    elif "a1" in chains:
+        # genus 1 (torus)
+        open_genus1(parent, D, chains, X0, ondone=ondone)
+
+
+def open_genus2(parent, D, chains, X0, ondone):
     rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'a2', 'b1', 'b2']}
 
     def commutator(a, b):
@@ -70,7 +82,7 @@ def openPacking(parent, ondone):
     mnormKAT = mobius.center_four_points(fc[0], fa1[0], fc[1], fa2[0])
     mnormKAT = recip.dot(mnormKAT)
 
-    import cpps.fgrep as fgrep
+    import fgrep as fgrep
     Rho = fgrep.FreeGroup({'a': rho['a1'], 'b': rho['b1'], 'c': rho['a2'], 'd': rho['b2'],
                            'k': commutator(rho['a1'], rho['b1'])}, inverter=mobius.sl2inv)
 
@@ -89,7 +101,64 @@ def openPacking(parent, ondone):
             vert_seen.add(ch[-1].src)
             vchains.add(ch)
 
-    findwords = FindWordsThread(parent, vchains, D, X0, Rho, mnormKAT)
+    findwords = FindWordsThread(parent, vchains, D, X0, Rho, mnormKAT, "aAbBcCdD")
+    findwords.start()
+
+    parent.mainWidget.opened_dcel = D
+
+
+    ondone()
+
+def open_genus1(parent, D, chains, X0, ondone):
+    rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'b1']}
+
+    def commutator(a, b):
+        return a.dot(b).dot(mobius.sl2inv(a)).dot(mobius.sl2inv(b))
+
+    def conjugate(inner, outer):
+        return mobius.sl2inv(outer).dot(inner).dot(outer)
+
+    rho = {'a1': rho0['a1'],
+           'b1': rho0['b1']}
+
+    print("RHO:", rho0['a1'])
+
+    print('This should be the identity matrix:')
+    print(commutator(rho['a1'], rho['b1']))
+
+    from collections import defaultdict
+    verts_of_valence = defaultdict(int)
+    for v in D.V:
+        verts_of_valence[v.valence] += 1
+    for k in verts_of_valence:
+        print(verts_of_valence[k], 'vertices of valence', k)
+
+    # recip = np.array([[0, 1j], [1j, 0]])
+    # fc = mobius.fix(commutator(rho['a1'], rho['b1']))
+    # fa1 = mobius.fix(rho['a1'])
+    # mnormKAT = mobius.center_four_points(fc[0], fa1[0], fc[1], fa2[0])
+    # mnormKAT = recip.dot(mnormKAT)
+    ident = np.array([[1, 0], [0, 1]])
+
+    import fgrep as fgrep
+    Rho = fgrep.FreeGroup({'a': rho['a1'], 'b': rho['b1']}, inverter=mobius.sl2inv)
+
+    print('Computing circle positions...')
+
+    # pared_wordlist = ["%s%s%s"%(a, b, c) for a in possi for b in possi for c in possi] + ["%s%s"%(a, b) for a in possi for b in possi] + ["%s"%a for a in possi]
+    # pared_wordlist = ["kK", "C", "D", "CC", "Cd", "CD", "CB"]
+
+    # print(pared_wordlist)
+
+    echains = dcel.edge_chain_dfs(D, chains['t1'][0])
+    vchains = set()
+    vert_seen = set()
+    for ch in echains:
+        if ch[-1].src not in vert_seen:
+            vert_seen.add(ch[-1].src)
+            vchains.add(ch)
+
+    findwords = FindWordsThread(parent, vchains, D, X0, Rho, ident, "aAbB")
     findwords.start()
 
     parent.mainWidget.opened_dcel = D
@@ -98,15 +167,9 @@ def openPacking(parent, ondone):
     ondone()
 
 
-"""
-The AnimationThread class animates transformations smoothly.
-
-note that `self.parent().draw_trigger.emit()` is what updates the graphics
-"""
-
 
 class FindWordsThread(QThread):
-    def __init__(self, parent, vchains, D, X0, Rho, mnormKAT):
+    def __init__(self, parent, vchains, D, X0, Rho, mnormKAT, char_list):
         super().__init__(parent)
 
         self.vchains = vchains
@@ -114,6 +177,7 @@ class FindWordsThread(QThread):
         self.X0 = X0
         self.Rho = Rho
         self.mnormKAT = mnormKAT
+        self.char_list = char_list
 
     def run(self):
 
@@ -158,7 +222,7 @@ class FindWordsThread(QThread):
 
                 return False
 
-            def find_word(w_list="aAbBcCdDkK", w="", n=7):
+            def find_word(w_list="aAbBcCdD", w="", n=7):
                 """
                 finds as many 'words' as possible to fill the circle packing
                 :param w: current word
@@ -169,5 +233,5 @@ class FindWordsThread(QThread):
                         if testConfig(w + w_n):
                             find_word(w_list, w + w_n, n - 1)
 
-            find_word()
+            find_word(w_list=self.char_list)
             self.parent().draw_trigger.emit()

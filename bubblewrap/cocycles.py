@@ -28,8 +28,10 @@
 # represented by a set of inequalities for each vertex of the dual
 # graph.
 
-import cpps.dcel as dcel
 import numpy as np
+
+import dcel as dcel
+
 
 def _closeup(L):
     return L+L[:1]
@@ -92,6 +94,20 @@ class InterstitialDCEL(dcel.IndexedDCEL):
     def packing_defect(self,X):
         return np.array([ m + np.eye(2) for m in self.hol_around_vertices(X)]).flatten()
 
+class EmbeddedDCEL(InterstitialDCEL):
+    """
+    V: set of vertices
+    E: set of Edges
+    F: set of Faces
+    e1: starting edge 1
+    e2: starting edge 2, if applicable
+    """
+    def __init__(self, data):
+        self.e1 = data[1]
+        self.e2 = data[2] if len(data) > 2 else None
+
+        super().__init__(data[0])
+
 class MirroredInterstitialDCEL(InterstitialDCEL):
     """DCEL of closed triangulated surface with mirror boundary supporting IC calcuations"""
     def hol_around_vertex(self,X,v):
@@ -124,13 +140,12 @@ if __name__=="__main__":
     """Find a KAT point for a one-holed torus with mirror boundary"""
     import triangulations
     import lsons
-    import sys
     from collections import defaultdict
     np.set_printoptions(suppress=True)
 
     D,t,b = triangulations.cylinder(5,5)
     t2 = t.boundary_forward(2)
-    dcel.glue_boundary(D,t,b,t2)
+    dcel.glue_boundary(D, t, b, t2)
 
     chain_down = [t]
     while True:

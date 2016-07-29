@@ -1,4 +1,4 @@
-import cpps.dcel as dcel
+import dcel as dcel
 
 
 def placeholder_gen(i, j):
@@ -85,7 +85,7 @@ def embedded_cylinder(nw, nh, coord_gen):
 
     # Glue the rings top-to-bottom
     for i in range(nh-1):
-        dcel.glue_boundary(D,bottoms[i],tops[i+1])
+        dcel.glue_boundary(D, bottoms[i], tops[i + 1])
 
     return D,tops[0],bottoms[-1]
 
@@ -100,7 +100,7 @@ def embedded_torus(nw, nh, stop=None, coord_gen=None):
         dcel.glue_boundary(mD, b1, t1)
     else:
         t1stop = t1.boundary_forward(stop)
-        dcel.glue_boundary(mD,t1,b1,t1stop)
+        dcel.glue_boundary(mD, t1, b1, t1stop)
 
     # return:
     # DCEL (mD, t1: starting edge)

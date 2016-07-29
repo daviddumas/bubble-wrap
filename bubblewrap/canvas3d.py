@@ -1,12 +1,14 @@
 # Created by: Jacob Lewis
 
 # used to convert a 3d point to a 2d point
-import cpps.dcel as dcel
-import numpy as np
 import math
-from cpps.dcel import IndexedDCEL
 from math import sin, cos
+
+import dcel
+import numpy as np
 from OpenGL.GL import *
+
+from cocycles import InterstitialDCEL
 from embeddings import embedded_torus, embedded_cylinder
 
 EPS = 1.0e-8
@@ -14,7 +16,7 @@ EPS = 1.0e-8
 class VisualDCELException(Exception):
     pass
 
-class EmbeddedDCEL(IndexedDCEL):
+class EmbeddedDCEL(InterstitialDCEL):
     """
     V: set of vertices
     E: set of Edges

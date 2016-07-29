@@ -1,6 +1,7 @@
 """Doubly-connected edge list"""
 
 import uuid
+import numpy as np
 
 class DCEL:
     """Doubly-connected edge list"""
@@ -79,7 +80,7 @@ class IndexedDCEL(ImmutableDCEL):
                     e.twin.uidx = len(UE)
                 UE.append(e)
         self.UE = tuple(UE)
-        
+
 class Vertex:
     """Vertex object for use with DCEL.
     
@@ -132,7 +133,14 @@ class Vertex:
             if e == self.leaving:
                 return
             yield e
-            
+
+class CoordinateVertex(Vertex):
+    def __init__(self, coords=(0, 0, 0), leaving=None):
+        self.coordinates = np.array(coords)  # transformed location
+        self.coordinates.shape = (3, 1)
+
+        super(CoordinateVertex, self).__init__(leaving)
+
 class HalfEdge:
     """Oriented edge object for use with DCEL, associated with whichever
     face has this orientation as part of its oriented boundary.

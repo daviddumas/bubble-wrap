@@ -390,7 +390,7 @@ class ControlGraphics:
         Uncomment the following to draw:
         """
         #drawHouse(self.delegate)
-        self.delegate.m_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
+        self.delegate.m_dcel = circular_torus_of_revolution(4, 4, rmaj=1, rmin=0.5)
         #self.delegate.m_dcel = cylinder_of_revolution(10, 10, vcenter=None, rad=15, height=40)
 
         self.delegate.opengl = glWidget(self.delegate)

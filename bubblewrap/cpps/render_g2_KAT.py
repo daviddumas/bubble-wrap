@@ -1,10 +1,12 @@
-import cpps.serialization as ser
-import cpps.dcel as dcel
-import cpps.cocycles as cocycles
-import cpps.mobius as mobius
-import cpps.circle as circle
-import numpy as np
 import sys
+
+import cpps.circle as circle
+import cpps.dcel as dcel
+import cpps.mobius as mobius
+import cpps.serialization as ser
+import numpy as np
+
+import cocycles as cocycles
 
 if len(sys.argv) < 2:
     print('''ERROR: No input filename given.
@@ -29,7 +31,7 @@ else:
     outfn = sys.argv[2]
 
 
-meta,D,chains,P = ser.zloadfn(infn,cls=cocycles.InterstitialDCEL)
+meta,D,chains,P = ser.zloadfn(infn, cls=cocycles.InterstitialDCEL)
 basept = chains['t1'][0]
 X0 = P[0]
 
@@ -56,15 +58,15 @@ for k in verts_of_valence:
     print(verts_of_valence[k],'vertices of valence',k)
 
 recip = np.array([[0,1j],[1j,0]])
-fc = mobius.fix(commutator(rho['a1'],rho['b1']))
+fc = mobius.fix(commutator(rho['a1'], rho['b1']))
 fa1 = mobius.fix(rho['a1'])
 fa2 = mobius.fix(rho['a2'])
-mnormKAT = mobius.center_four_points(fc[0],fa1[0],fc[1],fa2[0])
+mnormKAT = mobius.center_four_points(fc[0], fa1[0], fc[1], fa2[0])
 mnormKAT = recip.dot(mnormKAT)
 
-import cpps.fgrep as fgrep
-Rho = fgrep.FreeGroup({'a':rho['a1'],'b':rho['b1'],'c':rho['a2'],'d':rho['b2'],
-                       'k':commutator(rho['a1'],rho['b1'])},inverter=mobius.sl2inv)
+import fgrep as fgrep
+Rho = fgrep.FreeGroup({'a':rho['a1'], 'b':rho['b1'], 'c':rho['a2'], 'd':rho['b2'],
+                       'k':commutator(rho['a1'],rho['b1'])}, inverter=mobius.sl2inv)
 
 
 import bz2
@@ -72,14 +74,14 @@ pared_wordlist = { x.strip() for x in bz2.open('data/words/g2-commgen-pared-norm
 
 print('Computing circle positions...')
 
-echains = dcel.edge_chain_dfs(D,basept)
+echains = dcel.edge_chain_dfs(D, basept)
 vchains = set()
 vert_seen = set()
 for ch in echains:
     if ch[-1].src not in vert_seen:
         vert_seen.add(ch[-1].src)
         vchains.add(ch)
-c0 = circle.from_point_angle(0,0) # Real line is C0 in the "standard interstice"
+c0 = circle.from_point_angle(0, 0) # Real line is C0 in the "standard interstice"
 dev_pairs = set() # Will store (chain,holonomy word) pairs for general pictures later
 dev_circles = set()  # Will store circles for the Fuchsian (KAT) picture
 centers = dict()

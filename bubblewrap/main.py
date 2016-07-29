@@ -2,6 +2,8 @@
 main.py
 """
 
+__version__ = "0.15"
+
 import sys
 
 import numpy as np
@@ -15,8 +17,6 @@ from graphics_view import ControlGraphics
 from openpacking import openPacking
 from canvas3d import circular_torus_of_revolution, cylinder_of_revolution
 import tools
-
-V_NUM = "0.1"
 
 
 class Form(QMainWindow):
@@ -36,7 +36,7 @@ class Form(QMainWindow):
         self.setCentralWidget(self.mainWidget)
         uic.loadUi('ui/widget.ui', self.mainWidget)
         # Set the title/name of the frame
-        self.setWindowTitle('CPPS UI From XML Example v%s' % V_NUM)
+        self.setWindowTitle('CPPS UI From XML Example v%s' % __version__)
 
         # >>> ACTIONS <<<
         exitAction = QAction('&Exit', self)
@@ -92,6 +92,7 @@ class Form(QMainWindow):
             self.mainWidget.m_dcel = cylinder_of_revolution(10, 10, rad=1, height=2)
         elif surface_selected == 1:
             self.mainWidget.m_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
+
         elif surface_selected == 2:
             print("Currently unable to create a Genus 2 surface.")
 

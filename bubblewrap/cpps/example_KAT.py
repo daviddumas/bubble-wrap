@@ -1,19 +1,20 @@
 """Find and describe Kobe Andreev Thurston circle packing for mirrored one holed torus"""
 
-import numpy as np
+from collections import defaultdict
+
 import cpps.circle as circle
 import cpps.cocycles as cocycles
-import cpps.triangulations as triangulations
 import cpps.dcel as dcel
-import cpps.lsons as lsons
-import sys
-from collections import defaultdict
+import cpps.triangulations as triangulations
+import numpy as np
+
+import lsons as lsons
 
 np.set_printoptions(suppress=True)
 
-D,t,b = triangulations.cylinder(5,5)
+D,t,b = triangulations.cylinder(5, 5)
 t2 = t.boundary_forward(2)
-dcel.glue_boundary(D,t,b,t2)
+dcel.glue_boundary(D, t, b, t2)
 
 chain_down = [t]
 while True:
@@ -78,7 +79,7 @@ def jac(X):
 print('Initial cross ratio vector:\n',X0,'\n')
 
 print('SEARCHING for a Fuchsian circle packing.')
-X = lsons.lsroot(fun,jac,X0,args=(),verbose=False,maxcond=1e10,maxiter=50,relax=1.0)
+X = lsons.lsroot(fun, jac, X0, args=(), verbose=False, maxcond=1e10, maxiter=50, relax=1.0)
 print('FOUND an apparent Fuchsian circle packing.\n')
 
 print('Final cross ratio vector:\n',X,'\n')
@@ -101,7 +102,7 @@ print('tr([A,B]) = ',x*x+y*y+z*z-x*y*z-2)
 
 print('\nHere are the six circles around some vertex:')
 e0 = chain_down[3] # 3 levels below the top edge of the initial cylinder
-c0 = circle.from_point_angle(0,0) # Real line is C0 in the "standard interstice"
+c0 = circle.from_point_angle(0, 0) # Real line is C0 in the "standard interstice"
 # This loop will enumerate circles which are the neighbors of v0 = e0.src
 for i in range(6):
     chain = [e0]

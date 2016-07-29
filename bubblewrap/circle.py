@@ -3,7 +3,7 @@
 # Based on circles.c from lim by Curtis McMullen
 
 import numpy as np
-from .mobius import sl2inv
+from mobius import sl2inv
 
 _LINE_EPS = 1e-8
 

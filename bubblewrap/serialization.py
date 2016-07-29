@@ -6,21 +6,24 @@
 # Extension "CPJ" = Circle Packing, JSON
 # Extension "CPZ" = Circle Packing, JSON, gzipped
 
-import uuid
-import json
-import numpy as np
 import base64
-import cpps.dcel as dcel
 import datetime
 import gzip
+import json
 import os
 from collections import OrderedDict, Mapping
+
+import numpy as np
+
+import cocycles
+import dcel as dcel
+
 
 def gen_metadata(extra=None):
     """Header metadata for cpj files"""
     ts = datetime.datetime.utcnow().isoformat() + 'Z'
     m = { 'schema': 'cpj',
-          'schema_version': '0.0',
+          'schema_version': '0.2',
           'timestamp': ts }
     if extra:
         m.update(extra)
@@ -31,7 +34,7 @@ def gen_metadata(extra=None):
 
 def verts_so(V):
     """vertex is stored as a 0-based index of its leaving edge"""
-    return [ v.leaving.idx for v in V ]
+    return [ {"leaving":v.leaving.idx, "coordinates":[cor[0] for cor in v.coordinates] if hasattr(v, 'coordinates') else []} for v in V ]
 
 def edge_so(e):
     return { 'src': e.src.idx,
@@ -79,7 +82,7 @@ class CPPSEncoder(json.JSONEncoder):
                         dtype=str(obj.dtype),
                         shape=obj.shape)
 
-        if isinstance(obj,dcel.HalfEdge):
+        if isinstance(obj, dcel.HalfEdge):
             # Right now we only support serialization of chains of edges
             return obj.idx
 
@@ -151,7 +154,7 @@ def zstorefn(fn,D,edge_lists=None,packings=None,meta=None,force_compression=Fals
         with open(fn,mode,encoding='utf-8') as fp:
             return json.dump(serialization_object(D,edge_lists=edge_lists,packings=packings,meta=meta),fp,cls=CPPSEncoder)        
 
-def zloadfn(fn,force_decompression=False,cls=dcel.IndexedDCEL):
+def zloadfn(fn, force_decompression=False, cls=dcel.IndexedDCEL):
     """Load DCEL and packings from a file by name, transparently decompressing if necessary"""
 
     fn_base, fn_ext = os.path.splitext(fn)
@@ -163,18 +166,18 @@ def zloadfn(fn,force_decompression=False,cls=dcel.IndexedDCEL):
             so = json.load(infile,object_hook=json_numpy_obj_hook)
     return deserialize(so,cls=cls)
 
-def loadfn(fn,cls=dcel.IndexedDCEL):
+def loadfn(fn, cls=dcel.IndexedDCEL):
     """Load DCEL and packings from a file by name"""
     with open(fn,'rt',encoding='utf-8') as infile:
         so = json.load(infile,object_hook=json_numpy_obj_hook)
     return deserialize(so,cls=cls)
 
-def loadfp(fp,cls=dcel.IndexedDCEL):
+def loadfp(fp, cls=dcel.IndexedDCEL):
     """Load DCEL and packings from a file-like object"""
     so = json.load(fp,object_hook=json_numpy_obj_hook)
     return deserialize(so,cls=cls)
 
-def loads(s,cls=dcel.IndexedDCEL):
+def loads(s, cls=dcel.IndexedDCEL):
     """Load DCEL and packings from a string"""
     so = json.loads(s,object_hook=json_numpy_obj_hook)
     return deserialize(so,cls=cls)
@@ -182,7 +185,7 @@ def loads(s,cls=dcel.IndexedDCEL):
 def list_deref(L,indices):
     return [ L[i] for i in indices ]
 
-def deserialize(so,cls=dcel.IndexedDCEL,dcel_ref=None):
+def deserialize(so, cls=dcel.IndexedDCEL, dcel_ref=None):
     """Take a serialization object (as produced by dump()) and convert to
     an IndexedDCEL (or cls, if given) and collections of pointers to
     it.
@@ -190,12 +193,18 @@ def deserialize(so,cls=dcel.IndexedDCEL,dcel_ref=None):
     Returns: metadata, dcel, edge_lists, packings
 
     """
+    meta = so['metadata']
+    ver = float(meta['schema_version'])
+
     dso = so['dcel']
 #    for es in dso['edges']:
 #        print('edgenext:',es['next'])
-    E = [ dcel.HalfEdge() for _ in dso['edges'] ]
-    V = [ dcel.Vertex(leaving=E[vs]) for vs in dso['vertices'] ]
-    F = [ dcel.Face(edge=E[fs]) for fs in dso['faces'] ]
+    E = [dcel.HalfEdge() for _ in dso['edges']]
+    if ver < 0.2:
+        V = [dcel.Vertex(leaving=E[vs]) for vs in dso['vertices']]
+    else:
+        V = [dcel.CoordinateVertex(coords=vs['coordinates'], leaving=E[vs['leaving']]) for vs in dso['vertices']]
+    F = [dcel.Face(edge=E[fs]) for fs in dso['faces']]
     for e,es in zip(E,dso['edges']):
         if es['twin'] != None:
             e.twin = E[es['twin']]
@@ -205,7 +214,8 @@ def deserialize(so,cls=dcel.IndexedDCEL,dcel_ref=None):
         e.face = F[es['face']]
 
     # Assemble
-    D0 = dcel.ImmutableDCEL(V,E,F)
+    # TODO: fix None from below
+    D0 = cocycles.EmbeddedDCEL((dcel.ImmutableDCEL(V, E, F), None))
     # Index, if applicable
     D = cls(D0,set_uuid=dso['uuid'])
 
