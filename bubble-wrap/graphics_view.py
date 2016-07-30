@@ -153,6 +153,7 @@ class MyScene(QWidget):
 
         # cached circle transformations
         self.m_circles = []
+        self.v_to_c = None
 
         self.mp = -1e10, -1e10
 
@@ -170,14 +171,6 @@ class MyScene(QWidget):
         qp.fillRect(QRect(0, 0, self.width, self.height), QColor(250, 250, 250, 255))
 
         d = self.delegate
-
-        if d.progressValue[0] < 100:
-            pen = QPen(Qt.blue)
-            pen.setWidth(5)
-            qp.setPen(pen)
-            loadingRect = QRect(self.center[0] - 20, self.center[1] - 20, 40, 40)
-            qp.drawArc(loadingRect, 90*16, -int(d.progressValue[0]*3.6*16))
-            qp.setPen(Qt.black)
 
         zoom = self.display_params["zoom"]
         offset = self.display_params["pos"].copy()
@@ -203,6 +196,9 @@ class MyScene(QWidget):
             # begin new optimization thread
             self.optimize_thread = tools.OptimizeCirclesThread(self, d.circles, d.circles_optimize, d.packing_trans[0], self.display_params)
             self.optimize_thread.start(priority=QThread.LowPriority)
+
+            # reset (dual graph)
+            self.v_to_c = None
 
         # >>> ALL Circles beyond this point are optimized <<<
 
@@ -251,45 +247,55 @@ class MyScene(QWidget):
                 print(cir.line_base, cir.line_angle)
 
         # TODO: code for dual graph:
-        # draw circles
-        v_drawn = []
-        e_drawn = []
+        # draw dual graph
         v_to_v_drawn = []
-        red_dist = [1e10, None, None]
         if d.dual_graph:
-            edges_to_draw, v_to_c = parse_circles(self.m_circles, d.opened_dcel)
-            for edg in edges_to_draw:
+            if self.v_to_c is None:
+                self.v_to_c = parse_circles(self.m_circles)
+            for edg in d.opened_dcel.UE:
                 v = edg.src
                 v2 = edg.next.src
 
-                if v not in v_to_c:
+                if v not in self.v_to_c:
                     continue
-                cir = v_to_c[v]
-                if v2 in v_to_c:
-                    cir2 = v_to_c[v2]
+                cir = self.v_to_c[v]
+                if v2 in self.v_to_c:
+                    cir2 = self.v_to_c[v2]
                 else:
                     cir2 = None
 
-                if cir2 is not None and not cir.contains_infinity and (v, v2) not in v_to_v_drawn and (v2, v) not in v_to_v_drawn:
+                if cir2 is not None and not cir.contains_infinity and not cir2.contains_infinity and (v, v2) not in v_to_v_drawn and (v2, v) not in v_to_v_drawn:
                     v_to_v_drawn.append((v, v2))
                     draw_dual_graph_seg(cir, cir2, zoom, offset, self.center, qp, self.mp)
 
         # Update widget positions and draw them
-        self.dpad.setPos(self.width-70, 20)
-        self.dpad.draw(qp)
-        self.izoom.setPos(self.width-55, 80)
-        self.izoom.draw(qp)
-        self.ozoom.setPos(self.width-55, 105)
-        self.ozoom.draw(qp)
-        self.recenter.setPos(self.width-55, 130)
-        self.recenter.draw(qp)
-        self.dgraphtog.setPos(self.width-55, self.height-55)
-        self.dgraphtog.draw(qp)
+        self.drawWidgets(qp)
 
-        self.infoPanel.setPos(0, self.height-self.infoPanel.height)
-        self.infoPanel.draw(qp)
+        # draw progress wheel
+        if d.progressValue[0] < 100:
+            pen = QPen(QColor(0, 191, 255))
+            pen.setWidth(3)
+            qp.setPen(pen)
+            qp.drawArc(self.dpad.target, 90*16, -int(d.progressValue[0]*3.6*16))
+            qp.setPen(Qt.black)
 
         qp.end()
+
+    def drawWidgets(self, qp):
+        # Update widget positions and draw them
+        self.dpad.setPos(self.width - 70, 20)
+        self.dpad.draw(qp)
+        self.izoom.setPos(self.width - 55, 80)
+        self.izoom.draw(qp)
+        self.ozoom.setPos(self.width - 55, 105)
+        self.ozoom.draw(qp)
+        self.recenter.setPos(self.width - 55, 130)
+        self.recenter.draw(qp)
+        self.dgraphtog.setPos(self.width - 55, self.height - 55)
+        self.dgraphtog.draw(qp)
+
+        self.infoPanel.setPos(0, self.height - self.infoPanel.height)
+        self.infoPanel.draw(qp)
 
     def mouseReleaseEvent(self, QMouseEvent):
         # release button presses
@@ -378,11 +384,10 @@ class MyScene(QWidget):
         return self.width / 2, self.height / 2
 
 
-def parse_circles(circles, D):
+def parse_circles(circles):
     """
-    Used for Dual Graph (this may retire)
+    Used for Dual Graph
     :param circles:
-    :param D:
     :return:
     """
     v_to_c = {}
@@ -390,7 +395,7 @@ def parse_circles(circles, D):
         if d:
             v_to_c[v] = c
 
-    return D.UE if D is not None else [], v_to_c
+    return v_to_c
 
 def draw_dual_graph_seg(cir, cir2, zoom, offset, center, qp, mp):
     # TODO: fix/finish

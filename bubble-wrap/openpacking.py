@@ -53,6 +53,8 @@ def openPacking(parent, ondone):
 
     X0 = P[mkey]
 
+    parent.mainWidget.opened_dcel = D
+
     # SOLVE
     if dcel.oriented_manifold_type(D)['genus'] == 2:
         # genus 2
@@ -122,9 +124,6 @@ def open_genus2(parent, D, chains, X0, ondone, words=None):
     findwords = FindWordsThread(parent, vchains, D, X0, Rho, mnormKAT, known_words=words)
     findwords.start()
 
-    parent.mainWidget.opened_dcel = D
-
-
     ondone()
 
 def open_genus1(parent, D, chains, X0, ondone, words=None):
@@ -188,8 +187,6 @@ def open_genus1(parent, D, chains, X0, ondone, words=None):
 
     findwords = FindWordsThread(parent, vchains, D, X0, Rho, ident, char_list="aAbB")
     findwords.start()
-
-    parent.mainWidget.opened_dcel = D
 
     ondone()
 

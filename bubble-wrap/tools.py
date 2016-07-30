@@ -172,6 +172,11 @@ class OptimizeCirclesThread(QThread):
             elif cir.contains_infinity or dualgraph_part:
                 outCir.append([self.C[i][0], v, dualgraph_part])
 
+            if i % 50 == 0:
+                self.parent().delegate.progressValue[0] = 100 * (i+1) / len(m_circles)
+                self.parent().draw_trigger.emit()
+
         self.OC[0] = outCir.copy()
+        self.parent().delegate.progressValue[0] = 100
         print("Done! Optimized %d circles" % len(self.OC[0]), "dgraph", dgraphcount)
         self.parent().draw_trigger.emit()
