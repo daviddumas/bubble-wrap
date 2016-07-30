@@ -12,6 +12,7 @@ import numpy as np
 from PyQt5 import uic
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
+import datetime
 
 from calculation_view import ControlCalculations
 from graphics_view import ControlGraphics
@@ -69,11 +70,11 @@ class Form(QMainWindow):
         # Bind all of the UI elements to be used later
 
         # Bind Data Structures
-        self.mainWidget.m_dcel = None
+        self.mainWidget.opened_metadata = {}
+        self.update_metadata()
+        self.mainWidget.opened_dcel = circular_torus_of_revolution(4, 4, rmaj=1, rmin=0.5)
         self.mainWidget.circles = []
         self.mainWidget.circles_optimize = [[]]
-
-        self.mainWidget.opened_dcel = None
         self.mainWidget.dual_graph = False
         self.mainWidget.packing_trans = [np.array(((1, 0), (0, 1)), dtype='complex')]
 
@@ -84,6 +85,9 @@ class Form(QMainWindow):
 
         self.draw_trigger.connect(self.mainWidget.graphics.draw)
 
+    def update_metadata(self):
+        self.mainWidget.opened_metadata = {"schema_version": "0.2", "schema": "cpj", "timestamp": datetime.datetime.utcnow().isoformat() + 'Z'}
+
     def openNew(self):
         openPacking(self, lambda: self.mainWidget.graphics.draw())
 
@@ -93,12 +97,18 @@ class Form(QMainWindow):
         print("Surface selected: %s" % surfaces[surface_selected])
         # create the selected DCEL surface
         if surface_selected == 0:
-            self.mainWidget.m_dcel = cylinder_of_revolution(10, 10, rad=1, height=2)
+            self.mainWidget.opened_dcel = cylinder_of_revolution(10, 10, rad=1, height=2)
         elif surface_selected == 1:
-            self.mainWidget.m_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
+            self.mainWidget.opened_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
 
         elif surface_selected == 2:
-            print("Currently unable to create a Genus 2 surface.")
+            print("Currently unable to create a Genus 2 surface yet.")
+
+        # reset circles
+        self.mainWidget.circles = []
+        self.mainWidget.circles_optimize = [[]]
+        self.update_metadata()
+
 
         self.mainWidget.graphics.draw()
 

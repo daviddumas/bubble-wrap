@@ -29,7 +29,7 @@ def openPacking(parent, ondone):
     print(len(file[0]))
     print("Open a new file: %s" % str(file[0]))
 
-    meta, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
+    parent.mainWidget.opened_metadata, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
 
     # SHOW Packing DIALOG
     if isinstance(P, list):

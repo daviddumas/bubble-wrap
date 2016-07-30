@@ -195,6 +195,7 @@ def deserialize(so, cls=dcel.IndexedDCEL, dcel_ref=None):
     """
     meta = so['metadata']
     ver = float(meta['schema_version'])
+    print(ver)
 
     dso = so['dcel']
 #    for es in dso['edges']:
@@ -204,6 +205,7 @@ def deserialize(so, cls=dcel.IndexedDCEL, dcel_ref=None):
         V = [dcel.Vertex(leaving=E[vs]) for vs in dso['vertices']]
     else:
         V = [dcel.CoordinateVertex(coords=vs['coordinates'], leaving=E[vs['leaving']]) for vs in dso['vertices']]
+        print(V[0].coordinates)
     F = [dcel.Face(edge=E[fs]) for fs in dso['faces']]
     for e,es in zip(E,dso['edges']):
         if es['twin'] != None:
@@ -215,9 +217,9 @@ def deserialize(so, cls=dcel.IndexedDCEL, dcel_ref=None):
 
     # Assemble
     # TODO: fix None from below
-    D0 = cocycles.EmbeddedDCEL((dcel.ImmutableDCEL(V, E, F), None))
+    D0 = dcel.ImmutableDCEL(V, E, F)
     # Index, if applicable
-    D = cls(D0,set_uuid=dso['uuid'])
+    D = cocycles.EmbeddedDCEL((cls(D0,set_uuid=dso['uuid']), None))
 
     if 'edge_lists' not in so or so['edge_lists'] == None:
         edge_lists = None

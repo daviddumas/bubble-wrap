@@ -12,6 +12,7 @@ from math import sqrt, sin, cos
 from canvas3d import circular_torus_of_revolution, cylinder_of_revolution
 import numpy as np
 import mobius
+import cocycles
 import tools
 
 class glWidget(QGLWidget):
@@ -45,16 +46,24 @@ class glWidget(QGLWidget):
         GL.glRotate(self.rY, 0, 1, 0)
         GL.glRotate(self.rZ, 0, 0, 1)
 
-        GL.glColor4f(0.0, 0.0, 0.0, 0.2)
+        if self.delegate.opened_metadata is not None and float(self.delegate.opened_metadata["schema_version"]) >= 0.2:
+            if self.delegate.opened_dcel is not None:
+                try:
+                    GL.glColor4f(0.0, 0.0, 0.0, 0.2)
 
-        GL.glPolygonMode(GL.GL_FRONT, GL.GL_FILL)
-        GL.glPolygonMode(GL.GL_BACK, GL.GL_LINE)
-        self.delegate.m_dcel.paintGL()
+                    GL.glPolygonMode(GL.GL_FRONT, GL.GL_FILL)
+                    GL.glPolygonMode(GL.GL_BACK, GL.GL_LINE)
+                    self.drawShape(self.delegate.opened_dcel)
 
-        GL.glColor4f(0.0, 0.0, 0.0, 1)
+                    GL.glColor4f(0.0, 0.0, 0.0, 1)
 
-        GL.glPolygonMode(GL.GL_FRONT, GL.GL_LINE)
-        self.delegate.m_dcel.paintGL()
+                    GL.glPolygonMode(GL.GL_FRONT, GL.GL_LINE)
+
+                    self.drawShape(self.delegate.opened_dcel)
+                except(Exception):
+                    pass # print(self.delegate.opened_dcel)
+        else:
+            print("Unable to display shape because there is no correct embedding in the opened file")
 
         # posx, posy = 0, 0
         # sides = 32
@@ -71,6 +80,17 @@ class glWidget(QGLWidget):
         # glEnd()
 
         GL.glFlush()
+
+    def drawShape(self, D):
+        GL.glBegin(GL.GL_TRIANGLES)
+        for face in D.F:
+            e0 = face.edge
+            GL.glVertex3f(e0.src.coordinates[0], e0.src.coordinates[1], e0.src.coordinates[2])
+            e_n = e0.next
+            while e_n is not e0:
+                GL.glVertex3f(e_n.src.coordinates[0], e_n.src.coordinates[1], e_n.src.coordinates[2])
+                e_n = e_n.next
+        GL.glEnd()
 
     def wheelEvent(self, event):
         wheel_point = event.angleDelta()/60
@@ -217,8 +237,9 @@ class MyScene(QWidget):
             valences = get_valence_dict(d.opened_dcel.V)
             for k in valences:
                 self.infoPanel.addInfo("Valence %s" % k, "%s vertices" % valences[k])
-            if len(valences) == 0:
-                self.infoPanel.addInfo("Status", "no packing visible")
+        else:
+            self.infoPanel.clearInfo()
+            self.infoPanel.addInfo("Status", "no packing visible")
 
         for c in self.m_circles:
             cir = c[0]
@@ -249,7 +270,7 @@ class MyScene(QWidget):
         # TODO: code for dual graph:
         # draw dual graph
         v_to_v_drawn = []
-        if d.dual_graph:
+        if d.dual_graph and d.opened_dcel is not None:
             if self.v_to_c is None:
                 self.v_to_c = parse_circles(self.m_circles)
             for edg in d.opened_dcel.UE:
@@ -446,9 +467,6 @@ class ControlGraphics:
 
     def __init__(self, delegate):
         self.delegate = delegate
-
-        # default shape displayed
-        self.delegate.m_dcel = circular_torus_of_revolution(4, 4, rmaj=1, rmin=0.5)
 
         self.delegate.opengl = glWidget(self.delegate)
         self.delegate.opengl.setContentsMargins(0, 0, 0, 0)
