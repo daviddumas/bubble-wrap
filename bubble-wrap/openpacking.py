@@ -186,7 +186,7 @@ def open_genus1(parent, D, chains, X0, ondone, words=None):
             vert_seen.add(ch[-1].src)
             vchains.add(ch)
 
-    findwords = FindWordsThread(parent, vchains, D, X0, Rho, ident, "aAbB")
+    findwords = FindWordsThread(parent, vchains, D, X0, Rho, ident, char_list="aAbB")
     findwords.start()
 
     parent.mainWidget.opened_dcel = D
@@ -227,6 +227,15 @@ class FindWordsThread(QThread):
         self.parent().mainWidget.circles = []  # Will store circles for the Fuchsian (KAT) picture
         self.parent().mainWidget.circles_optimize = [[]]
         centers = []
+        omit_circles = []
+
+        # solve fundamental domain first (for dual graph)
+        for ch in self.vchains:
+            h = self.D.hol(ch, self.X0)
+            c1 = c0.transform_gl2(h).transform_sl2(self.mnormKAT)
+            v0 = ch[-1].src
+            self.parent().mainWidget.circles.append([c1, v0, True])
+            omit_circles.append(getNormCenter(c1))
 
         # If there are no known words, calculate them here
         if self.known_words is None:
@@ -243,14 +252,14 @@ class FindWordsThread(QThread):
                     """
                     c = c1.transform_sl2(self.Rho[w]).transform_sl2(self.mnormKAT)
                     norm = getNormCenter(c)
-                    if norm is None or norm not in centers:
+                    if norm not in omit_circles and (norm is None or norm not in centers):
                         if norm is not None:
                             centers.append(norm)
                         else:
                             print("line")
                         if not c.contains_infinity and np.abs(c.radius) >= 0.005 or c.contains_infinity:
                             v0 = ch[-1].src
-                            self.parent().mainWidget.circles.append([c, v0])
+                            self.parent().mainWidget.circles.append([c, v0, False])
 
                         if not c.contains_infinity and np.abs(c.radius) < 0.00025:
                             return False
@@ -283,8 +292,9 @@ class FindWordsThread(QThread):
                 c1 = c0.transform_gl2(h)
                 for w in self.known_words:
                     c = c1.transform_sl2(self.Rho[w]).transform_sl2(self.mnormKAT)
-                    v0 = ch[-1].src
-                    self.parent().mainWidget.circles.append([c, v0])
+                    if getNormCenter(c) not in omit_circles:
+                        v0 = ch[-1].src
+                        self.parent().mainWidget.circles.append([c, v0, False])
 
                 # reflect progress on progress bar
                 self.parent().mainWidget.progressValue[0] = int((i + 1) / len(self.vchains) * 100)

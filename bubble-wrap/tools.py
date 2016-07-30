@@ -144,14 +144,20 @@ class OptimizeCirclesThread(QThread):
         for ci in self.C:
             if self.cancel:
                 return
-            m_circles.append((ci[0].transform_sl2(T), ci[1]))
+            m_circles.append((ci[0].transform_sl2(T), ci[1], ci[2]))
 
+        dgraphcount = 0
         for i, c in enumerate(m_circles):
             if self.cancel:
                 return
 
             cir = c[0]
             v = c[1]
+            dualgraph_part = c[2]
+
+            if dualgraph_part:
+                dgraphcount += 1
+
             if not cir.contains_infinity and np.abs(zoom * cir.radius) > 1:
                 # margin_threshold (change this parameter to allow more/less circles to be included off frame)
                 mt = 50
@@ -160,22 +166,12 @@ class OptimizeCirclesThread(QThread):
                 tc = center[1] + offset[1] + zoom * (cir.center.imag - cir.radius)
                 dia = zoom * (cir.radius * 2)
 
-                if lc < width + mt and lc + dia > -mt and tc < height + mt and tc + dia > -mt and dia > 2:
-                    outCir.append([self.C[i][0], v.valence])
+                if lc < width + mt and lc + dia > -mt and tc < height + mt and tc + dia > -mt and dia > 2 or dualgraph_part:
+                    outCir.append([self.C[i][0], v, dualgraph_part])
 
-            elif cir.contains_infinity:
-                # creates a straight line
-                # x = self.center[0] + cir.line_base.real
-                # y = self.center[1] + cir.line_base.imag
-                # size = sqrt(cir.line_base.real ** 2 + cir.line_base.imag ** 2)
-                # scrSizeAvg = (self.width + self.height) / 2
-                # size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
-                # # Draw the line out from the line_base in either direction
-                # qp.drawLine(x - size * cos(cir.line_angle), y - size * sin(cir.line_angle),
-                #             x + size * cos(cir.line_angle), y + size * sin(cir.line_angle))
-                # print(cir.line_base, cir.line_angle)
-                outCir.append([self.C[i][0], v.valence])
+            elif cir.contains_infinity or dualgraph_part:
+                outCir.append([self.C[i][0], v, dualgraph_part])
 
         self.OC[0] = outCir.copy()
-        print("Done! Optimized %d circles" % len(self.OC[0]))
+        print("Done! Optimized %d circles" % len(self.OC[0]), "dgraph", dgraphcount)
         self.parent().draw_trigger.emit()

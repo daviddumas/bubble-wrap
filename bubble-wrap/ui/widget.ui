@@ -78,7 +78,7 @@
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0,0">
+    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0">
      <property name="spacing">
       <number>0</number>
      </property>
@@ -259,13 +259,6 @@
         </size>
        </property>
       </spacer>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="dual_graph_btn">
-       <property name="text">
-        <string>Dual Graph</string>
-       </property>
-      </widget>
      </item>
     </layout>
    </item>

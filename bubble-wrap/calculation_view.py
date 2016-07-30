@@ -142,7 +142,6 @@ class ControlCalculations(QObject):
         self.bind_button(d.testbtn3)
         self.bind_button(d.reset_trans_btn)
         self.bind_button(d.solve_btn)
-        self.bind_button(d.dual_graph_btn)
 
     def bind_button(self, btn):
         # connects buttons to code
@@ -167,10 +166,6 @@ class ControlCalculations(QObject):
             self.animate_all(np.array([[0, 1j], [1j, 0]]))
         elif btn == d.reset_trans_btn:
             self.animate_all(np.linalg.inv(d.packing_trans[0]))
-
-        elif btn == d.dual_graph_btn:
-            self.delegate.dual_graph = d.dual_graph_btn.isChecked()
-            self.delegate.graphics.draw()
 
         elif btn == d.solve_btn:
             solve_circle_packing_from_torus(self.delegate.m_dcel)

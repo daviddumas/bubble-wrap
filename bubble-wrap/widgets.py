@@ -120,6 +120,18 @@ class MinusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
         super().__init__("ui/assets/minus_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/minus_act.png")
 
+class DualGraphToggleWidget(BaseWidget):
+    def __init__(self, targetQRect=QRectF(0,0,0,0)):
+        super().__init__("ui/assets/dual_graph_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/dual_graph_act.png")
+        self.active = False
+
+    def isHit(self, mouse):
+        if super().isHit(mouse):
+            self.active = not self.active
+
+        self.hit = self.active
+        return self.active
+
 class InfoWidget(BaseWidget):
     def __init__(self):
         """

@@ -141,6 +141,7 @@ class MyScene(QWidget):
         self.display_params = {"zoom": 100, "pos": [0, 0], "start_pos": [0, 0], "center": [0, 0], "width": 0, "height": 0}
 
         self.dpad = TranslateWidget()
+        self.dgraphtog = DualGraphToggleWidget()
         self.recenter = CenterWidget()
         self.izoom = PlusWidget()
         self.ozoom = MinusWidget()
@@ -211,7 +212,7 @@ class MyScene(QWidget):
             self.m_circles = []
             for ci in d.circles_optimize[0]:
                 # print(ci[0])
-                self.m_circles.append((ci[0].transform_sl2(T), ci[1]))
+                self.m_circles.append((ci[0].transform_sl2(T), ci[1], ci[2]))
             self.lT = d.packing_trans.copy()
 
         # print off valence info
@@ -228,7 +229,7 @@ class MyScene(QWidget):
             v = c[1]
             if not cir.contains_infinity and np.abs(zoom * cir.radius) > 1:
                 # add ellipses to an array for optimization
-                if v > 6:
+                if v.valence > 6:
                     qp.setPen(Qt.red)
                 else:
                     qp.setPen(Qt.black)
@@ -251,50 +252,27 @@ class MyScene(QWidget):
 
         # TODO: code for dual graph:
         # draw circles
-        # v_drawn = []
-        # e_drawn = []
-        # red_dist = [1e10, None, None]
-        # for edg in edges_to_draw:
-        #     break
-        #     v = edg.src
-        #     v2 = edg.next.src
-        #
-        #     if v not in v_to_c:
-        #         continue
-        #     cir = v_to_c[v]
-        #     if v2 in v_to_c:
-        #         cir2 = v_to_c[v2]
-        #     else:
-        #         cir2 = None
-        #
-        #     if d.dual_graph and cir2 is not None and not cir.contains_infinity and edg.twin not in e_drawn:
-        #         draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, self.center, qp, self.mp)
-        #
-        #     # if v in v_drawn:
-        #     #     continue
-        #     # v_drawn.append(v)
-        #
-        #     if not cir.contains_infinity:
-        #         # add ellipses to an array for optimization
-        #         if v.valence > 6:
-        #             qp.setPen(Qt.red)
-        #         else:
-        #             qp.setPen(Qt.black)
-        #
-        #         qp.drawEllipse(self.center[0] + offset[0] + zoom * (cir.center.real - cir.radius),
-        #                        self.center[1] + offset[1] + zoom * (cir.center.imag - cir.radius),
-        #                        zoom * (cir.radius * 2), zoom * (cir.radius * 2))
-        #     else:
-        #         # creates a straight line
-        #         x = self.center[0] + cir.line_base.real
-        #         y = self.center[1] + cir.line_base.imag
-        #         size = sqrt(cir.line_base.real ** 2 + cir.line_base.imag ** 2)
-        #         scrSizeAvg = (self.width + self.height) / 2
-        #         size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
-        #         # Draw the line out from the line_base in either direction
-        #         qp.drawLine(x - size * cos(cir.line_angle), y - size * sin(cir.line_angle),
-        #                     x + size * cos(cir.line_angle), y + size * sin(cir.line_angle))
-        #         print(cir.line_base, cir.line_angle)
+        v_drawn = []
+        e_drawn = []
+        v_to_v_drawn = []
+        red_dist = [1e10, None, None]
+        if d.dual_graph:
+            edges_to_draw, v_to_c = parse_circles(self.m_circles, d.opened_dcel)
+            for edg in edges_to_draw:
+                v = edg.src
+                v2 = edg.next.src
+
+                if v not in v_to_c:
+                    continue
+                cir = v_to_c[v]
+                if v2 in v_to_c:
+                    cir2 = v_to_c[v2]
+                else:
+                    cir2 = None
+
+                if cir2 is not None and not cir.contains_infinity and (v, v2) not in v_to_v_drawn and (v2, v) not in v_to_v_drawn:
+                    v_to_v_drawn.append((v, v2))
+                    draw_dual_graph_seg(cir, cir2, zoom, offset, self.center, qp, self.mp)
 
         # Update widget positions and draw them
         self.dpad.setPos(self.width-70, 20)
@@ -305,6 +283,8 @@ class MyScene(QWidget):
         self.ozoom.draw(qp)
         self.recenter.setPos(self.width-55, 130)
         self.recenter.draw(qp)
+        self.dgraphtog.setPos(self.width-55, self.height-55)
+        self.dgraphtog.draw(qp)
 
         self.infoPanel.setPos(0, self.height-self.infoPanel.height)
         self.infoPanel.draw(qp)
@@ -347,15 +327,17 @@ class MyScene(QWidget):
             # reset/recenter view
             self.delegate.calculations.animate_attributes(self.display_params, {"zoom": 100, "pos": [0, 0]})
 
+        d.dual_graph = self.dgraphtog.isHit(mouse)
+
         # >>> Directional Pad (dpad) <<<
         # check for mouse interaction.  If there is a hit, trans will store the button pressed
         trans = self.dpad.isHit(mouse)
         # change attributes accordingly
         attr_changes = None
         if trans == TranslateWidget.RIGHT:
-            attr_changes = {"pos": [pos_x + 20, pos_y]}
-        elif trans == TranslateWidget.LEFT:
             attr_changes = {"pos": [pos_x - 20, pos_y]}
+        elif trans == TranslateWidget.LEFT:
+            attr_changes = {"pos": [pos_x + 20, pos_y]}
         elif trans == TranslateWidget.UP:
             attr_changes = {"pos": [pos_x, pos_y + 20]}
         elif trans == TranslateWidget.DOWN:
@@ -404,25 +386,22 @@ def parse_circles(circles, D):
     :return:
     """
     v_to_c = {}
-    for c, v in circles:
-        v_to_c[v] = c
+    for c, v, d in circles:
+        if d:
+            v_to_c[v] = c
 
     return D.UE if D is not None else [], v_to_c
 
-def draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, center, qp, mp):
+def draw_dual_graph_seg(cir, cir2, zoom, offset, center, qp, mp):
     # TODO: fix/finish
-    e_drawn.append(edg)
-    if (cir.center.real - cir2.center.real) ** 2 + (cir.center.imag - cir2.center.imag) ** 2 <= (
-                    cir.radius + cir2.radius + 0.01) ** 2:
+    if (cir.center.real - cir2.center.real) ** 2 + (cir.center.imag - cir2.center.imag) ** 2 <= (cir.radius + cir2.radius + 0.01) ** 2:
 
-        ax, ay, bx, by, mx, my = center[0] + offset[0] + zoom * cir.center.real, center[
-            1] + offset[1] + zoom * cir.center.imag, \
-                                 center[0] + offset[0] + zoom * cir2.center.real, center[
-                                     1] + offset[1] + zoom * cir2.center.imag, mp[0] + center[0], mp[1] + \
+        ax, ay, bx, by, mx, my = center[0] + offset[0] + zoom * cir.center.real, center[1] + offset[1] + zoom * cir.center.imag, \
+                                 center[0] + offset[0] + zoom * cir2.center.real, center[1] + offset[1] + zoom * cir2.center.imag, mp[0] + center[0], mp[1] + \
                                  center[1]
 
         # bias = 10
-        qp.setPen(Qt.black)
+        qp.setPen(Qt.blue)
         # if (ax + bias > mx > bx - bias or ax - bias < mx < bx + bias) and (
         #                         ay + bias > my > by - bias or ay - bias < my < by + bias):
         #     d1 = ax - bx, ay - by
