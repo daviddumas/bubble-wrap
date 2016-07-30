@@ -9,12 +9,20 @@ import numpy as np
 import cocycles
 import serialization as ser
 import dcel
-import mobius
 import circle
 from tools import *
+import bz2
 
 
 def openPacking(parent, ondone):
+    """
+    Open a circle packing with genus 1 or 2
+    :param parent:
+    :param ondone:
+    :return:
+    """
+    pared_wordlist = {x.strip() for x in bz2.open('data/words/g2-commgen-pared-norm50.txt.bz2', 'rt')}
+
     file = QFileDialog.getOpenFileName(parent=parent)
     if file[0] == None or len(file[0]) < 5:
         return
@@ -23,7 +31,7 @@ def openPacking(parent, ondone):
 
     meta, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
 
-    # SHOW DIALOG
+    # SHOW Packing DIALOG
     if isinstance(P, list):
         tempP = P.copy()
         P={}
@@ -35,21 +43,36 @@ def openPacking(parent, ondone):
     except(Exception):
         odict = OrderedDict.fromkeys(sorted(P))
 
-    mkey = showListDialog(parent, odict, "Select a Packing")
+    # displays a drop down menu with all available circle packings
+    mkey = showDropdownDialog(parent, odict, "Select a Packing")
+
     if isinstance(mkey, int) and mkey == -1:
         return
+    elif isinstance(mkey, int):
+        mkey = str(list(odict.keys())[mkey])
+
     X0 = P[mkey]
 
     # SOLVE
-    if "a2" in chains:
+    if dcel.oriented_manifold_type(D)['genus'] == 2:
         # genus 2
-        open_genus2(parent, D, chains, X0, ondone=ondone)
-    elif "a1" in chains:
+        open_genus2(parent, D, chains, X0, ondone=ondone, words=pared_wordlist)
+    elif dcel.oriented_manifold_type(D)['genus'] == 1:
         # genus 1 (torus)
         open_genus1(parent, D, chains, X0, ondone=ondone)
 
 
-def open_genus2(parent, D, chains, X0, ondone):
+def open_genus2(parent, D, chains, X0, ondone, words=None):
+    """
+    Find a circle packing for a genus 2 surface
+    :param parent:
+    :param D:
+    :param chains:
+    :param X0:
+    :param ondone:
+    :param words:
+    :return:
+    """
     rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'a2', 'b1', 'b2']}
 
     def commutator(a, b):
@@ -88,11 +111,6 @@ def open_genus2(parent, D, chains, X0, ondone):
 
     print('Computing circle positions...')
 
-    # pared_wordlist = ["%s%s%s"%(a, b, c) for a in possi for b in possi for c in possi] + ["%s%s"%(a, b) for a in possi for b in possi] + ["%s"%a for a in possi]
-    # pared_wordlist = ["kK", "C", "D", "CC", "Cd", "CD", "CB"]
-
-    # print(pared_wordlist)
-
     echains = dcel.edge_chain_dfs(D, chains['t1'][0])
     vchains = set()
     vert_seen = set()
@@ -101,7 +119,7 @@ def open_genus2(parent, D, chains, X0, ondone):
             vert_seen.add(ch[-1].src)
             vchains.add(ch)
 
-    findwords = FindWordsThread(parent, vchains, D, X0, Rho, mnormKAT, "aAbBcCdD")
+    findwords = FindWordsThread(parent, vchains, D, X0, Rho, mnormKAT, known_words=words)
     findwords.start()
 
     parent.mainWidget.opened_dcel = D
@@ -109,7 +127,17 @@ def open_genus2(parent, D, chains, X0, ondone):
 
     ondone()
 
-def open_genus1(parent, D, chains, X0, ondone):
+def open_genus1(parent, D, chains, X0, ondone, words=None):
+    """
+    Find a circle packing for a genus 1 surface (torus)
+    :param parent:
+    :param D:
+    :param chains:
+    :param X0:
+    :param ondone:
+    :param words:
+    :return:
+    """
     rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'b1']}
 
     def commutator(a, b):
@@ -163,13 +191,15 @@ def open_genus1(parent, D, chains, X0, ondone):
 
     parent.mainWidget.opened_dcel = D
 
-
     ondone()
 
 
 
 class FindWordsThread(QThread):
-    def __init__(self, parent, vchains, D, X0, Rho, mnormKAT, char_list):
+    """
+    Find and Display the words of a circle packing in a separate thread so that the UI is not bogged down
+    """
+    def __init__(self, parent, vchains, D, X0, Rho, mnormKAT, char_list="", known_words=None):
         super().__init__(parent)
 
         self.vchains = vchains
@@ -178,60 +208,89 @@ class FindWordsThread(QThread):
         self.Rho = Rho
         self.mnormKAT = mnormKAT
         self.char_list = char_list
+        self.known_words = known_words
 
     def run(self):
 
         def getNormCenter(c):
+            """
+            Normalizes circle center by rounding it's coordinates
+            :param c:
+            :return:
+            """
             if c.contains_infinity:
-                return complex(10e8, 10e8)
+                return None
             return complex(int(c.center.real * 100000) / 100000, int(c.center.imag * 100000) / 100000)
 
         c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
 
         self.parent().mainWidget.circles = []  # Will store circles for the Fuchsian (KAT) picture
+        self.parent().mainWidget.circles_optimize = [[]]
         centers = []
-        omit_centers = []
 
-        # First add the Fundamental Domain
-        for ch in self.vchains:
-            h = self.D.hol(ch, self.X0)
-            c1 = c0.transform_gl2(h).transform_sl2(self.mnormKAT)
-            v0 = ch[-1].src
-            self.parent().mainWidget.circles.append([c1, v0])
-            omit_centers.append(getNormCenter(c1))
+        # If there are no known words, calculate them here
+        if self.known_words is None:
+            # Then find the surrounding circles through holonomy
+            for i, ch in enumerate(self.vchains):
+                h = self.D.hol(ch, self.X0)
+                c1 = c0.transform_gl2(h)
 
-        # Then find the surrounding circles through holonomy
-        for ch in self.vchains:
-            h = self.D.hol(ch, self.X0)
-            c1 = c0.transform_gl2(h)
+                def testConfig(w):
+                    """
+                    Given a word `w`, find whether or not the circle belongs in the packing
+                    :param w: a word
+                    :return:
+                    """
+                    c = c1.transform_sl2(self.Rho[w]).transform_sl2(self.mnormKAT)
+                    norm = getNormCenter(c)
+                    if norm is None or norm not in centers:
+                        if norm is not None:
+                            centers.append(norm)
+                        else:
+                            print("line")
+                        if not c.contains_infinity and np.abs(c.radius) >= 0.005 or c.contains_infinity:
+                            v0 = ch[-1].src
+                            self.parent().mainWidget.circles.append([c, v0])
 
-            def testConfig(w):
-                c = c1.transform_sl2(self.Rho[w]).transform_sl2(self.mnormKAT)
-                if getNormCenter(c) not in centers:
-                    centers.append(getNormCenter(c))
-                    if getNormCenter(c) not in omit_centers and \
-                            not c.contains_infinity and \
-                                    np.abs(c.radius) >= 0.005 or c.contains_infinity:
-                        v0 = ch[-1].src
-                        self.parent().mainWidget.circles.append([c, v0])
+                        if not c.contains_infinity and np.abs(c.radius) < 0.00025:
+                            return False
 
-                    if not c.contains_infinity and np.abs(c.radius) < 0.00025:
-                        return False
+                        return True
 
-                    return True
+                    return False
 
-                return False
+                def find_word(w_list="aAbBcCdD", w="", n=7):
+                    """
+                    finds as many 'words' as possible to fill the circle packing
+                    :param w_list: list of word elements to build the words
+                    :param w: current word
+                    :param n: recursion depth
+                    """
+                    if n > 0:
+                        for w_n in w_list:
+                            if testConfig(w + w_n):
+                                find_word(w_list, w + w_n, n - 1)
 
-            def find_word(w_list="aAbBcCdD", w="", n=7):
-                """
-                finds as many 'words' as possible to fill the circle packing
-                :param w: current word
-                :param n: recursion depth
-                """
-                if n > 0:
-                    for w_n in w_list:
-                        if testConfig(w + w_n):
-                            find_word(w_list, w + w_n, n - 1)
+                find_word(w_list=self.char_list)
 
-            find_word(w_list=self.char_list)
-            self.parent().draw_trigger.emit()
+                # reflect progress on progress bar
+                self.parent().mainWidget.progressValue[0] = int((i + 1) / len(self.vchains) * 100)
+                self.parent().draw_trigger.emit()
+        else:
+            # If the words are known, iterate over all words
+            for i, ch in enumerate(self.vchains):
+                h = self.D.hol(ch, self.X0)
+                c1 = c0.transform_gl2(h)
+                for w in self.known_words:
+                    c = c1.transform_sl2(self.Rho[w]).transform_sl2(self.mnormKAT)
+                    v0 = ch[-1].src
+                    self.parent().mainWidget.circles.append([c, v0])
+
+                # reflect progress on progress bar
+                self.parent().mainWidget.progressValue[0] = int((i + 1) / len(self.vchains) * 100)
+                self.parent().draw_trigger.emit()
+
+        # Force update will require the UI to optimize the circle packing for snappy interaction
+        self.parent().mainWidget.graphics.force_update()
+        # Tell the UI to redraw
+        self.parent().draw_trigger.emit()

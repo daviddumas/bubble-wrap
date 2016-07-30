@@ -6,6 +6,13 @@ import math
 
 class BaseWidget:
     def __init__(self, image_src=None, source=None, target=None, image2_src=None):
+        """
+        This class is the base widget which controls the basic button functionality
+        :param image_src: main img
+        :param source: image dimensions
+        :param target: drawing dimensions
+        :param image2_src: pressed img
+        """
         self.image = QImage(image_src)
         self.image2 = None if image2_src is None else QImage(image2_src)
         self.source = source
@@ -52,6 +59,7 @@ class BaseWidget:
 
 
 class TranslateWidget(BaseWidget):
+    NO_HIT = 0
     RIGHT = 1
     UP = 2
     LEFT = 3
@@ -59,18 +67,19 @@ class TranslateWidget(BaseWidget):
 
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
         super().__init__("ui/assets/dpad_norm.png", QRectF(0,0,52,52), targetQRect)
-        self.current_act = 0
+        self.current_act = self.NO_HIT
 
     def draw(self, QPainter):
-        if self.current_act==0:
+        # decide which image to paint to screen
+        if self.current_act==self.NO_HIT:
             super().draw(QPainter)
-        elif(self.current_act==1):
+        elif(self.current_act==self.RIGHT):
             QPainter.drawImage(self.target, QImage("ui/assets/dpad_right.png"), self.source)
-        elif(self.current_act==2):
+        elif(self.current_act==self.UP):
             QPainter.drawImage(self.target, QImage("ui/assets/dpad_up.png"), self.source)
-        elif(self.current_act==3):
+        elif(self.current_act==self.LEFT):
             QPainter.drawImage(self.target, QImage("ui/assets/dpad_left.png"), self.source)
-        elif(self.current_act==4):
+        elif(self.current_act==self.DOWN):
             QPainter.drawImage(self.target, QImage("ui/assets/dpad_down.png"), self.source)
 
     def isHit(self, mouse):
@@ -79,16 +88,16 @@ class TranslateWidget(BaseWidget):
             a90 = 1.570796
             angle = math.atan2(self.center[1]-mouse.pos().y(), mouse.pos().x()-self.center[0])
             if a45 > angle >= -a45:
-                self.current_act = 1
+                self.current_act = self.RIGHT
                 return self.RIGHT
             elif a45+a90 > angle >= a45:
-                self.current_act = 2
+                self.current_act = self.UP
                 return self.UP
             elif a45+a90 <= angle or -a45-a90 >= angle:
-                self.current_act = 3
+                self.current_act = self.LEFT
                 return self.LEFT
             else:
-                self.current_act = 4
+                self.current_act = self.DOWN
                 return self.DOWN
         else:
             self.current_act = 0
@@ -97,6 +106,10 @@ class TranslateWidget(BaseWidget):
     def release(self):
         self.current_act = 0
 
+
+class CenterWidget(BaseWidget):
+    def __init__(self, targetQRect=QRectF(0,0,0,0)):
+        super().__init__("ui/assets/center_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/center_act.png")
 
 class PlusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
@@ -109,6 +122,9 @@ class MinusWidget(BaseWidget):
 
 class InfoWidget(BaseWidget):
     def __init__(self):
+        """
+        This widget displays information within a transparent black box
+        """
         self.info_panels = OrderedDict()
         self.margins = 10
         self.font = QFont("Arial", 12)

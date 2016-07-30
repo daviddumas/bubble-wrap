@@ -11,7 +11,8 @@ from widgets import *
 from math import sqrt, sin, cos
 from canvas3d import circular_torus_of_revolution, cylinder_of_revolution
 import numpy as np
-
+import mobius
+import tools
 
 class glWidget(QGLWidget):
 
@@ -126,67 +127,108 @@ class glWidget(QGLWidget):
             print("zoomed in too much!!")
 
 class MyScene(QWidget):
+    draw_trigger = pyqtSignal()
+
     def __init__(self, delegate, parent=None):
         super().__init__(parent)
         self.delegate = delegate
 
+
+
+        self.optimize_thread = None
+
         # display_params (zoom, pos:[relative to center])
-        self.display_params = {"zoom": 100, "pos": [0, 0], "start_pos": [0, 0]}
+        self.display_params = {"zoom": 100, "pos": [0, 0], "start_pos": [0, 0], "center": [0, 0], "width": 0, "height": 0}
 
         self.dpad = TranslateWidget()
+        self.recenter = CenterWidget()
         self.izoom = PlusWidget()
         self.ozoom = MinusWidget()
         self.infoPanel = InfoWidget()
         self.infoPanel.addInfo("Valences", "(work in progress)")
 
+        self.lT = None
+        self.force_update = True
+
+        # cached circle transformations
+        self.m_circles = []
+
         self.mp = -1e10, -1e10
 
+        self.draw_trigger.connect(self.update)
+
     def paintEvent(self, QPaintEvent):
+        # update sizes
+        self.display_params["center"] = self.center
+        self.display_params["width"] = self.width
+        self.display_params["height"] = self.height
+
         qp = QPainter(self)
         qp.setRenderHint(QPainter.Antialiasing)
 
         qp.fillRect(QRect(0, 0, self.width, self.height), QColor(250, 250, 250, 255))
-        # qp.setPen(Qt.black)
-        # qp.drawEllipse(self.center[0] + self.mp[0] - 1,
-        #                self.center[1] + self.mp[1] - 1,
-        #                2, 2)
-
-
-        #print("cursor:", self.mp)
-        #qp.setBrush(Qt.black)
 
         d = self.delegate
+
+        if d.progressValue[0] < 100:
+            pen = QPen(Qt.blue)
+            pen.setWidth(5)
+            qp.setPen(pen)
+            loadingRect = QRect(self.center[0] - 20, self.center[1] - 20, 40, 40)
+            qp.drawArc(loadingRect, 90*16, -int(d.progressValue[0]*3.6*16))
+            qp.setPen(Qt.black)
+
         zoom = self.display_params["zoom"]
-        offset = self.display_params["pos"]
+        offset = self.display_params["pos"].copy()
+
+        # Detect if circle packing optimization is needed
+        sameT = False
+        try:
+            if self.lT != d.packing_trans:
+                self.force_update = True
+            else:
+                sameT = True
+        except(Exception):
+            self.force_update = True
+
+        if self.force_update:
+            self.force_update = False
+            # If so, optimize circles
+
+            # cancel old thread
+            if self.optimize_thread is not None and self.optimize_thread.isRunning():
+                self.optimize_thread.cancel = True
+
+            # begin new optimization thread
+            self.optimize_thread = tools.OptimizeCirclesThread(self, d.circles, d.circles_optimize, d.packing_trans[0], self.display_params)
+            self.optimize_thread.start(priority=QThread.LowPriority)
+
+        # >>> ALL Circles beyond this point are optimized <<<
 
         # transform circles
-        m_circles = []
-        T = d.packing_trans[0] / np.sqrt(np.linalg.det(d.packing_trans[0]))
-        for ci in d.circles:
-            m_circles.append((ci[0].transform_sl2(T), ci[1]))
+        T = mobius.make_sl2(d.packing_trans[0])
+        if not sameT or len(self.m_circles) != len(d.circles_optimize[0]):
+            self.m_circles = []
+            for ci in d.circles_optimize[0]:
+                # print(ci[0])
+                self.m_circles.append((ci[0].transform_sl2(T), ci[1]))
+            self.lT = d.packing_trans.copy()
 
         # print off valence info
-        self.infoPanel.clearInfo()
-        valences = get_valence_dict(d.circles)
-        for k in valences:
-            self.infoPanel.addInfo("Valence %s" % k, "%s vertices" % valences[k])
-        if len(valences) == 0:
-            self.infoPanel.addInfo("Status", "no packing visible")
+        if d.opened_dcel is not None:
+            self.infoPanel.clearInfo()
+            valences = get_valence_dict(d.opened_dcel.V)
+            for k in valences:
+                self.infoPanel.addInfo("Valence %s" % k, "%s vertices" % valences[k])
+            if len(valences) == 0:
+                self.infoPanel.addInfo("Status", "no packing visible")
 
-
-        # draw circles
-        v_drawn = []
-        e_drawn = []
-        red_dist = [1e10, None, None]
-
-        edges_to_draw, v_to_c = parse_circles(m_circles, d.opened_dcel)
-
-        for c in m_circles:
+        for c in self.m_circles:
             cir = c[0]
             v = c[1]
             if not cir.contains_infinity and np.abs(zoom * cir.radius) > 1:
                 # add ellipses to an array for optimization
-                if v.valence > 6:
+                if v > 6:
                     qp.setPen(Qt.red)
                 else:
                     qp.setPen(Qt.black)
@@ -196,119 +238,141 @@ class MyScene(QWidget):
                                zoom * (cir.radius * 2), zoom * (cir.radius * 2))
             elif cir.contains_infinity:
                 # creates a straight line
-                x = self.center[0] + cir.line_base.real
-                y = self.center[1] + cir.line_base.imag
-                size = sqrt(cir.line_base.real ** 2 + cir.line_base.imag ** 2)
+                x = self.center[0] + offset[0] + cir.line_base.real
+                y = self.center[1] + offset[1] + cir.line_base.imag
+                size = 3 * sqrt((offset[0] + cir.line_base.real) ** 2 + (offset[1] + cir.line_base.imag) ** 2)
                 scrSizeAvg = (self.width + self.height) / 2
                 size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
                 # Draw the line out from the line_base in either direction
                 qp.drawLine(x - size * cos(cir.line_angle), y - size * sin(cir.line_angle),
                             x + size * cos(cir.line_angle), y + size * sin(cir.line_angle))
+                print(x, y, ":", size)
                 print(cir.line_base, cir.line_angle)
 
+        # TODO: code for dual graph:
+        # draw circles
+        # v_drawn = []
+        # e_drawn = []
+        # red_dist = [1e10, None, None]
+        # for edg in edges_to_draw:
+        #     break
+        #     v = edg.src
+        #     v2 = edg.next.src
+        #
+        #     if v not in v_to_c:
+        #         continue
+        #     cir = v_to_c[v]
+        #     if v2 in v_to_c:
+        #         cir2 = v_to_c[v2]
+        #     else:
+        #         cir2 = None
+        #
+        #     if d.dual_graph and cir2 is not None and not cir.contains_infinity and edg.twin not in e_drawn:
+        #         draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, self.center, qp, self.mp)
+        #
+        #     # if v in v_drawn:
+        #     #     continue
+        #     # v_drawn.append(v)
+        #
+        #     if not cir.contains_infinity:
+        #         # add ellipses to an array for optimization
+        #         if v.valence > 6:
+        #             qp.setPen(Qt.red)
+        #         else:
+        #             qp.setPen(Qt.black)
+        #
+        #         qp.drawEllipse(self.center[0] + offset[0] + zoom * (cir.center.real - cir.radius),
+        #                        self.center[1] + offset[1] + zoom * (cir.center.imag - cir.radius),
+        #                        zoom * (cir.radius * 2), zoom * (cir.radius * 2))
+        #     else:
+        #         # creates a straight line
+        #         x = self.center[0] + cir.line_base.real
+        #         y = self.center[1] + cir.line_base.imag
+        #         size = sqrt(cir.line_base.real ** 2 + cir.line_base.imag ** 2)
+        #         scrSizeAvg = (self.width + self.height) / 2
+        #         size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
+        #         # Draw the line out from the line_base in either direction
+        #         qp.drawLine(x - size * cos(cir.line_angle), y - size * sin(cir.line_angle),
+        #                     x + size * cos(cir.line_angle), y + size * sin(cir.line_angle))
+        #         print(cir.line_base, cir.line_angle)
 
-
-        for edg in edges_to_draw:
-            break
-            v = edg.src
-            v2 = edg.next.src
-
-            if v not in v_to_c:
-                continue
-            cir = v_to_c[v]
-            if v2 in v_to_c:
-                cir2 = v_to_c[v2]
-            else:
-                cir2 = None
-
-            if d.dual_graph and cir2 is not None and not cir.contains_infinity and edg.twin not in e_drawn:
-                draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, self.center, qp, self.mp)
-
-            # if v in v_drawn:
-            #     continue
-            # v_drawn.append(v)
-
-            if not cir.contains_infinity:
-                # add ellipses to an array for optimization
-                if v.valence > 6:
-                    qp.setPen(Qt.red)
-                else:
-                    qp.setPen(Qt.black)
-
-                qp.drawEllipse(self.center[0] + offset[0] + zoom * (cir.center.real - cir.radius),
-                               self.center[1] + offset[1] + zoom * (cir.center.imag - cir.radius),
-                               zoom * (cir.radius * 2), zoom * (cir.radius * 2))
-            else:
-                # creates a straight line
-                x = self.center[0] + cir.line_base.real
-                y = self.center[1] + cir.line_base.imag
-                size = sqrt(cir.line_base.real ** 2 + cir.line_base.imag ** 2)
-                scrSizeAvg = (self.width + self.height) / 2
-                size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
-                # Draw the line out from the line_base in either direction
-                qp.drawLine(x - size * cos(cir.line_angle), y - size * sin(cir.line_angle),
-                            x + size * cos(cir.line_angle), y + size * sin(cir.line_angle))
-                print(cir.line_base, cir.line_angle)
-
+        # Update widget positions and draw them
         self.dpad.setPos(self.width-70, 20)
         self.dpad.draw(qp)
         self.izoom.setPos(self.width-55, 80)
         self.izoom.draw(qp)
         self.ozoom.setPos(self.width-55, 105)
         self.ozoom.draw(qp)
+        self.recenter.setPos(self.width-55, 130)
+        self.recenter.draw(qp)
 
         self.infoPanel.setPos(0, self.height-self.infoPanel.height)
         self.infoPanel.draw(qp)
 
-        #print("drawn!")
         qp.end()
 
     def mouseReleaseEvent(self, QMouseEvent):
+        # release button presses
         self.izoom.release()
         self.ozoom.release()
+        self.recenter.release()
         self.dpad.release()
+
+        # force packing optimization and redraw
+        self.force_update = True
         self.delegate.graphics.draw()
 
     def mousePressEvent(self, mouse):
         d = self.delegate
+        pos_x = self.display_params["pos"][0]
+        pos_y = self.display_params["pos"][1]
+        zoom = self.display_params["zoom"]
 
-        self.display_params["start_pos"] = [self.display_params["pos"][0] - mouse.pos().x(),
-                                            self.display_params["pos"][1] - mouse.pos().y()]
+        self.display_params["start_pos"] = [pos_x - mouse.pos().x(),
+                                            pos_y - mouse.pos().y()]
 
         self.mp = mouse.pos().x()-self.center[0], mouse.pos().y()-self.center[1]
 
         if self.izoom.isHit(mouse):
             # zoom in
-            self.display_params["zoom"] *= 1.5
             # keeps circle packing centered when zooming
-            self.display_params["pos"][0] *= 1.5
-            self.display_params["pos"][1] *= 1.5
+            self.delegate.calculations.animate_attributes(self.display_params,
+                {"zoom":zoom * 1.5, "pos":[pos_x * 1.5, pos_y * 1.5]})
         elif self.ozoom.isHit(mouse):
             # zoom out
-            self.display_params["zoom"] /= 1.5
             # keeps circle packing centered when zooming
-            self.display_params["pos"][0] /= 1.5
-            self.display_params["pos"][1] /= 1.5
+            self.delegate.calculations.animate_attributes(self.display_params,
+                {"zoom": zoom / 1.5, "pos": [pos_x / 1.5, pos_y / 1.5]})
+        elif self.recenter.isHit(mouse):
+            # reset/recenter view
+            self.delegate.calculations.animate_attributes(self.display_params, {"zoom": 100, "pos": [0, 0]})
 
+        # >>> Directional Pad (dpad) <<<
+        # check for mouse interaction.  If there is a hit, trans will store the button pressed
         trans = self.dpad.isHit(mouse)
-
+        # change attributes accordingly
+        attr_changes = None
         if trans == TranslateWidget.RIGHT:
-            self.display_params["pos"][0] += 10
+            attr_changes = {"pos": [pos_x + 20, pos_y]}
         elif trans == TranslateWidget.LEFT:
-            self.display_params["pos"][0] -= 10
+            attr_changes = {"pos": [pos_x - 20, pos_y]}
         elif trans == TranslateWidget.UP:
-            self.display_params["pos"][1] -= 10
+            attr_changes = {"pos": [pos_x, pos_y + 20]}
         elif trans == TranslateWidget.DOWN:
-            self.display_params["pos"][1] += 10
+            attr_changes = {"pos": [pos_x, pos_y - 20]}
+        if attr_changes is not None:
+            self.delegate.calculations.animate_attributes(self.display_params, attr_changes)
 
         d.graphics.draw()
 
     def mouseMoveEvent(self, mouse):
+        # move packing around with cursor
         self.display_params["pos"][0] = self.display_params["start_pos"][0] + mouse.pos().x()
         self.display_params["pos"][1] = self.display_params["start_pos"][1] + mouse.pos().y()
         self.update()
 
     def wheelEvent(self, event):
+        # zoom in and out of the packing
         wheel_point = event.angleDelta()/60
 
         self.display_params["zoom"] *= 1.2**wheel_point.y()
@@ -316,6 +380,7 @@ class MyScene(QWidget):
         self.display_params["pos"][0] *= 1.2**wheel_point.y()
         self.display_params["pos"][1] *= 1.2**wheel_point.y()
 
+        self.force_update = True
         self.update()
 
     @property
@@ -330,7 +395,14 @@ class MyScene(QWidget):
     def center(self):
         return self.width / 2, self.height / 2
 
+
 def parse_circles(circles, D):
+    """
+    Used for Dual Graph (this may retire)
+    :param circles:
+    :param D:
+    :return:
+    """
     v_to_c = {}
     for c, v in circles:
         v_to_c[v] = c
@@ -338,6 +410,7 @@ def parse_circles(circles, D):
     return D.UE if D is not None else [], v_to_c
 
 def draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, center, qp, mp):
+    # TODO: fix/finish
     e_drawn.append(edg)
     if (cir.center.real - cir2.center.real) ** 2 + (cir.center.imag - cir2.center.imag) ** 2 <= (
                     cir.radius + cir2.radius + 0.01) ** 2:
@@ -370,28 +443,28 @@ def draw_dual_graph_seg(e_drawn, edg, cir, cir2, zoom, offset, center, qp, mp):
 
         qp.drawLine(ax, ay, bx, by)
 
-def get_valence_dict(circles):
+def get_valence_dict(verts):
+    """
+    Finds the valences of the vertices supplied
+    :param verts:
+    :return: a dict of valences with their count
+    """
     from collections import defaultdict
     verts_of_valence = defaultdict(int)
-    for c in circles:
-        if c[1] is not None:
-            verts_of_valence[c[1].valence] += 1
-    # for k in verts_of_valence:
-    #     print(verts_of_valence[k], 'vertices of valence', k)
+    for v in verts:
+        verts_of_valence[v.valence] += 1
     return dict(verts_of_valence)
 
 class ControlGraphics:
+    """
+    Graphics controller attached to main delegate
+    """
 
     def __init__(self, delegate):
         self.delegate = delegate
-        # gv = QVBoxLayout()
-        # gv.addWidget()
-        """
-        Uncomment the following to draw:
-        """
-        #drawHouse(self.delegate)
+
+        # default shape displayed
         self.delegate.m_dcel = circular_torus_of_revolution(4, 4, rmaj=1, rmin=0.5)
-        #self.delegate.m_dcel = cylinder_of_revolution(10, 10, vcenter=None, rad=15, height=40)
 
         self.delegate.opengl = glWidget(self.delegate)
         self.delegate.opengl.setContentsMargins(0, 0, 0, 0)
@@ -401,9 +474,13 @@ class ControlGraphics:
         self.delegate.gv2.addWidget(self.delegate.scene2)
         self.delegate.gv1.addWidget(self.delegate.opengl)
 
+    def force_update(self):
+        self.delegate.scene2.force_update = True
+
     def draw(self, view=-1):
         if view == -1 or view == 0:
             self.delegate.opengl.update()
 
         if view == -1 or view == 1:
             self.delegate.scene2.update()
+

@@ -443,3 +443,4 @@ if __name__=="__main__":
     
     print(len(ID.E),'oriented edges')
     print(len(ID.UE),'unoriented edges')
+    print(oriented_manifold_type(D))

@@ -6,6 +6,8 @@ from PyQt5 import uic
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+import mobius
+import numpy as np
 
 
 def showListDialog(parent, ordered_dictionary, title):
@@ -78,3 +80,102 @@ def showDropdownDialog(parent, items, title):
     dialog.cancelBtn.clicked.connect(cancelItem)
     dialog.exec_()
     return response[0]
+
+def showProgressDialog(parent, progress_data, title="Loading..."):
+    """
+    Show a progress Dialog to select some item
+    :param progress_data: list of [progress, is_still_working]
+    :param title: window title
+    :return:
+    """
+
+    class ProgressThread(QThread):
+        def __init__(self, parent, progress_data):
+            super().__init__(parent)
+
+            self.pData = progress_data
+
+        def run(self):
+            while self.pData[1]:
+
+                self.msleep(200)
+
+
+    class ProgressQDialog(QDialog):
+
+        def __init__(self, flags, *args, **kwargs):
+            super().__init__(flags, *args, **kwargs)
+            self.progress_bar = None
+
+        def update_progress(self, frac):
+            if self.progress_bar is not None:
+                self.progress_bar.value(int(frac*100))
+
+    dialog = ProgressQDialog(parent)
+    uic.loadUi("ui/progress_dialog.ui", dialog)
+    dialog.setWindowTitle(title)
+    dialog.progress_bar = dialog.progressBar
+
+    dialog.exec_()
+
+
+# >>> Threading Tools used for Enhanced Performance <<<
+class OptimizeCirclesThread(QThread):
+    def __init__(self, parent, circles, out_circles, mobius_transform=None, display_params=None):
+        super().__init__(parent)
+
+        self.C = circles
+        self.OC = out_circles
+        self.T = mobius_transform
+        self.P = display_params
+        self.cancel = False
+
+    def run(self):
+        zoom = self.P["zoom"]
+        offset = self.P["pos"].copy()
+        center = (self.P["center"][0], self.P["center"][1])
+        width = self.P["width"]
+        height = self.P["height"]
+
+        outCir = []
+        # transform circles
+        m_circles = []
+        T = mobius.make_sl2(self.T)
+        for ci in self.C:
+            if self.cancel:
+                return
+            m_circles.append((ci[0].transform_sl2(T), ci[1]))
+
+        for i, c in enumerate(m_circles):
+            if self.cancel:
+                return
+
+            cir = c[0]
+            v = c[1]
+            if not cir.contains_infinity and np.abs(zoom * cir.radius) > 1:
+                # margin_threshold (change this parameter to allow more/less circles to be included off frame)
+                mt = 50
+
+                lc = center[0] + offset[0] + zoom * (cir.center.real - cir.radius)
+                tc = center[1] + offset[1] + zoom * (cir.center.imag - cir.radius)
+                dia = zoom * (cir.radius * 2)
+
+                if lc < width + mt and lc + dia > -mt and tc < height + mt and tc + dia > -mt and dia > 2:
+                    outCir.append([self.C[i][0], v.valence])
+
+            elif cir.contains_infinity:
+                # creates a straight line
+                # x = self.center[0] + cir.line_base.real
+                # y = self.center[1] + cir.line_base.imag
+                # size = sqrt(cir.line_base.real ** 2 + cir.line_base.imag ** 2)
+                # scrSizeAvg = (self.width + self.height) / 2
+                # size = scrSizeAvg if size < scrSizeAvg else size  # Makes sure the line will be long enough to fill the screen
+                # # Draw the line out from the line_base in either direction
+                # qp.drawLine(x - size * cos(cir.line_angle), y - size * sin(cir.line_angle),
+                #             x + size * cos(cir.line_angle), y + size * sin(cir.line_angle))
+                # print(cir.line_base, cir.line_angle)
+                outCir.append([self.C[i][0], v.valence])
+
+        self.OC[0] = outCir.copy()
+        print("Done! Optimized %d circles" % len(self.OC[0]))
+        self.parent().draw_trigger.emit()

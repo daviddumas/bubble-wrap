@@ -3,7 +3,7 @@
 main.py
 """
 
-__version__ = "0.2"
+__version__ = "0.2.1 (pre-alpha)"
 
 import sys
 
@@ -23,11 +23,11 @@ import tools
 class Form(QMainWindow):
     draw_trigger = pyqtSignal()
 
-    @property
-    def draw_trigger2(self):
-        return self.draw_trigger
-
     def __init__(self, parent=None):
+        """
+        Main Window for Bubble Wrap Application
+        :param parent:
+        """
         super(Form, self).__init__(parent)
         self.setContentsMargins(0,0,0,0)
         self.mainWidget = QWidget(parent)
@@ -71,10 +71,13 @@ class Form(QMainWindow):
         # Bind Data Structures
         self.mainWidget.m_dcel = None
         self.mainWidget.circles = []
+        self.mainWidget.circles_optimize = [[]]
+
         self.mainWidget.opened_dcel = None
         self.mainWidget.dual_graph = False
         self.mainWidget.packing_trans = [np.array(((1, 0), (0, 1)), dtype='complex')]
 
+        self.mainWidget.progressValue = [0]
         # Connect Controllers
         self.mainWidget.graphics = ControlGraphics(self.mainWidget)
         self.mainWidget.calculations = ControlCalculations(self.mainWidget)

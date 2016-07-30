@@ -126,38 +126,34 @@ def solve_circle_packing_from_torus(D):
     ser.zstorefn('output/torus/torus.cpz', D, chains, [X])
 
 class ControlCalculations(QObject):
-
-    # This trigger will be used to update the graphics every frame.  At the moment it is arbitrary
+    """
+    Calculations controller attached to main delegate
+    """
+    # This trigger will be used to update the graphics every frame.
     draw_trigger = pyqtSignal()
 
-    def __init__(self, delegate):
-        super().__init__(parent=delegate)
-        self.delegate = delegate
+    def __init__(self, d):
+        super().__init__(parent=d)
+        self.delegate = d
 
-        # Bind the buttons from the UI
-        self.bind_btn(delegate.testbtn1)
-        self.bind_btn(delegate.invert_pack_btn)
-        self.bind_btn(delegate.testbtn3)
-        self.bind_btn(delegate.reset_trans_btn)
-        self.bind_btn(delegate.solve_btn)
-        self.bind_btn(delegate.dual_graph_btn)
-        self.adjustCircles(16)
+        # Bind the buttons from the UI (identifier names specified in *.ui file)
+        self.bind_button(d.testbtn1)
+        self.bind_button(d.invert_pack_btn)
+        self.bind_button(d.testbtn3)
+        self.bind_button(d.reset_trans_btn)
+        self.bind_button(d.solve_btn)
+        self.bind_button(d.dual_graph_btn)
 
-
-    def bind_btn(self, btn):
+    def bind_button(self, btn):
+        # connects buttons to code
         btn.clicked.connect(lambda: self.btn_clicked(btn))
 
-    def adjustCircles(self, num_of_circles):
-        side = int(math.sqrt(num_of_circles))
-        scale = 1/side
-        # Bind Data Structures
-        # self.delegate.circles = [[c.from_center_radius(complex(x * scale, cmath.sqrt(3) * scale/2 * y) if y % 2 == 0 else
-        #                                               complex(x * scale + scale/2, cmath.sqrt(3) * scale/2 * y), scale/2), CoordinateVertex()]
-        #                          for x in range(-side//2, side//2+1) for y in range(-side//2, side//2+1)]
-
-        #self.delegate.graphics.draw()
-
     def btn_clicked(self, btn):
+        """
+        Perform actions to button clicks
+        :param btn:
+        :return: void
+        """
         T = ((1.005 + 1.005j, 0.01),
              (0.5, 1 + 0.5j))
 
@@ -179,34 +175,43 @@ class ControlCalculations(QObject):
         elif btn == d.solve_btn:
             solve_circle_packing_from_torus(self.delegate.m_dcel)
 
-
-
-    """
-    The following methods apply either an transformation adjustment or animation
-    """
+    # >>> The following methods apply either an transformation adjustment or animation <<<
     def adjust_all(self, transformation):
+        """
+        Mobius Transformation (No animation)
+        :param transformation:
+        :return:
+        """
         d = self.delegate
         d.packing_trans[0] = d.packing_trans[0].dot(np.array(transformation, dtype='complex'))
         self.delegate.graphics.draw()
 
     def animate_all(self, transformation):
+        """
+        Mobius Transformation (with animation)
+        :param transformation:
+        :return:
+        """
         # Create a new Animation Thread.  The new thread will insure our UI does not freeze.
         # The Animation Thread time is in milliseconds
-        th = AnimationThread(self, transformation, 500)
+        th = MobiusAnimationThread(self, transformation, 500)
         th.start()
-        # th2 = AnimationThread(self, self.delegate.circles, transformation, 1000, len(self.delegate.circles) // 2,
-        #                       len(self.delegate.circles))
-        # th2.start()
+
         # The trigger is required when updating the circles every frame
         self.draw_trigger.connect(self.delegate.graphics.draw)
 
-"""
-The AnimationThread class animates transformations smoothly.
+    def animate_attributes(self, attr_obj, changes):
+        th = AttributeAnimationThread(self, attr_obj, changes, 500)
+        th.start()
 
-note that `self.parent().draw_trigger.emit()` is what updates the graphics
-"""
+        # The trigger is required when updating the circles every frame
+        self.draw_trigger.connect(self.delegate.graphics.draw)
 
-class AnimationThread(QThread):
+
+class MobiusAnimationThread(QThread):
+    """
+    A Thread designed to animate Mobius transformations
+    """
 
     def __init__(self, parent, transformation, tmill):
         super().__init__(parent)
@@ -239,5 +244,66 @@ class AnimationThread(QThread):
 
         # update the last frame
         self.c_trans[0] = self.orig_trans.dot(np.array(self.trans, dtype='complex'))
+        # No need to force optimization because a change in the mobius transformation will automatically
+        # trigger it to re-optimize.
+        # Tell the UI to redraw
+        self.parent().draw_trigger.emit()
 
+
+class AttributeAnimationThread(QThread):
+    def __init__(self, parent, attr_obj, changes, tmill):
+        """
+        AttributeAnimationThread animates properties within a dictionary
+        :param parent: parent QObject
+        :param attr_obj: reference to dictionary object with floating point properties
+        :param changes: a dictionary with final values
+        :param tmill: time in milliseconds
+        """
+        super().__init__(parent)
+        self.FPS = 30
+
+        self.attr_obj = attr_obj
+        self.orig_attr_obj = dict(attr_obj)
+        self.attr_changes = changes
+        self.time = tmill
+        # a dictionary that holds each step for each parameter
+        self.step = {}
+
+        for k in self.attr_changes:
+            if isinstance(self.attr_changes[k], list) or isinstance(self.attr_changes[k], tuple):
+                self.orig_attr_obj[k] = self.orig_attr_obj[k].copy()
+                self.step[k] = []
+                for i, v in enumerate(self.attr_changes[k]):
+                    self.step[k].append(v - self.attr_obj[k][i])
+
+                print(self.attr_obj[k], self.attr_changes[k], self.step[k])
+            else:
+                self.step[k] = float(self.attr_changes[k] - self.attr_obj[k])
+
+    def run(self):
+        wait = 1000 // self.FPS
+        counter = 0
+
+        while int(self.time / 1000.0 * self.FPS) >= counter:
+            # before = time.time()
+            for k in self.step:
+                if isinstance(self.step[k], list):
+                    for i, v in enumerate(self.step[k]):
+                        T = self.step[k][i] * swift_in_out(counter / (self.time / 1000.0 * self.FPS))
+                        self.attr_obj[k][i] = self.orig_attr_obj[k][i] + T
+                else:
+                    T = self.step[k] * swift_in_out(counter / (self.time / 1000.0 * self.FPS))
+                    self.attr_obj[k] = self.orig_attr_obj[k] + T
+
+            self.parent().draw_trigger.emit()
+            self.msleep(wait)
+            counter += 1
+
+        # update the last frame
+        for k in self.attr_changes:
+            self.attr_obj[k] = self.attr_changes[k]
+
+        # Force update will require the UI to optimize the circle packing for snappy interaction
+        self.parent().delegate.graphics.force_update()
+        # Tell the UI to redraw
         self.parent().draw_trigger.emit()
