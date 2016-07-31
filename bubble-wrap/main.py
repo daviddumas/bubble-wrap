@@ -1,7 +1,4 @@
 #!/usr/bin/python3
-"""
-main.py
-"""
 
 __version__ = "0.2.1 (pre-alpha)"
 
@@ -12,7 +9,6 @@ import numpy as np
 from PyQt5 import uic
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-import datetime
 
 from calculation_view import ControlCalculations
 from graphics_view import ControlGraphics
@@ -30,17 +26,58 @@ class Form(QMainWindow):
         :param parent:
         """
         super(Form, self).__init__(parent)
-        self.setContentsMargins(0,0,0,0)
+        self.setContentsMargins(0, 0, 0, 0)
         self.mainWidget = QWidget(parent)
 
         self.mainWidget.setWindowFlags(Qt.FramelessWindowHint)
-        self.mainWidget.setContentsMargins(0,0,0,0)
+        self.mainWidget.setContentsMargins(0, 0, 0, 0)
         self.setCentralWidget(self.mainWidget)
         uic.loadUi('ui/widget.ui', self.mainWidget)
         # Set the title/name of the frame
         self.setWindowTitle("Bubble Wrap {}".format(__version__))
 
         # >>> ACTIONS <<<
+        self.setup_actions()
+
+        # Bind all of the UI elements to be used later
+
+        # Bind Data Structures
+        self.mainWidget.uecp = tools.UnifiedEmbeddedCirclePacking()
+
+        # Connect Controllers
+        self.mainWidget.graphics = ControlGraphics(self.mainWidget)
+        self.mainWidget.calculations = ControlCalculations(self.mainWidget)
+
+        self.draw_trigger.connect(self.mainWidget.graphics.draw)
+
+    def openNew(self):
+        openPacking(self, lambda: self.mainWidget.graphics.draw())
+
+    def createNew(self):
+        uecp = self.mainWidget.uecp
+        surfaces = ("Cylinder", "Torus", "Genus 2 Surface")
+        surface_selected = tools.showDropdownDialog(self, surfaces, "Select a surface to create")
+        print("Surface selected: %s" % surfaces[surface_selected])
+        # create the selected DCEL surface
+        if surface_selected == 0:
+            uecp.opened_dcel = cylinder_of_revolution(10, 10, rad=1, height=2)
+        elif surface_selected == 1:
+            uecp.opened_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
+
+        elif surface_selected == 2:
+            print("Currently unable to create a Genus 2 surface yet.")
+
+        # reset circles
+        uecp.circles = []
+        uecp.circles_optimize = [[]]
+        uecp.reset_metadata()
+
+        self.mainWidget.graphics.draw()
+
+    def setup_actions(self):
+        """
+        Setup `File` actions
+        """
         exitAction = QAction('&Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit application')
@@ -56,62 +93,13 @@ class Form(QMainWindow):
         newAction.setStatusTip('Create a New Object')
         newAction.triggered.connect(self.createNew)
 
-        menubar = self.menuBar()
-        menubar.setNativeMenuBar(False)
-        fileMenu = menubar.addMenu('&File')
+        menu_bar = self.menuBar()
+        menu_bar.setNativeMenuBar(False)
+        file_menu = menu_bar.addMenu('&File')
 
-        fileMenu.addAction(newAction)
-        fileMenu.addAction(openAction)
-        fileMenu.addAction(exitAction)
-
-        # self.topFiller = QWidget(parent)
-        # self.topFiller.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
-        # Bind all of the UI elements to be used later
-
-        # Bind Data Structures
-        self.mainWidget.opened_metadata = {}
-        self.update_metadata()
-        self.mainWidget.opened_dcel = circular_torus_of_revolution(4, 4, rmaj=1, rmin=0.5)
-        self.mainWidget.circles = []
-        self.mainWidget.circles_optimize = [[]]
-        self.mainWidget.dual_graph = False
-        self.mainWidget.packing_trans = [np.array(((1, 0), (0, 1)), dtype='complex')]
-
-        self.mainWidget.progressValue = [0]
-        # Connect Controllers
-        self.mainWidget.graphics = ControlGraphics(self.mainWidget)
-        self.mainWidget.calculations = ControlCalculations(self.mainWidget)
-
-        self.draw_trigger.connect(self.mainWidget.graphics.draw)
-
-    def update_metadata(self):
-        self.mainWidget.opened_metadata = {"schema_version": "0.2", "schema": "cpj", "timestamp": datetime.datetime.utcnow().isoformat() + 'Z'}
-
-    def openNew(self):
-        openPacking(self, lambda: self.mainWidget.graphics.draw())
-
-    def createNew(self):
-        surfaces = ("Cylinder", "Torus", "Genus 2 Surface")
-        surface_selected = tools.showDropdownDialog(self, surfaces, "Select a surface to create")
-        print("Surface selected: %s" % surfaces[surface_selected])
-        # create the selected DCEL surface
-        if surface_selected == 0:
-            self.mainWidget.opened_dcel = cylinder_of_revolution(10, 10, rad=1, height=2)
-        elif surface_selected == 1:
-            self.mainWidget.opened_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
-
-        elif surface_selected == 2:
-            print("Currently unable to create a Genus 2 surface yet.")
-
-        # reset circles
-        self.mainWidget.circles = []
-        self.mainWidget.circles_optimize = [[]]
-        self.update_metadata()
-
-
-        self.mainWidget.graphics.draw()
-
+        file_menu.addAction(newAction)
+        file_menu.addAction(openAction)
+        file_menu.addAction(exitAction)
 
     def resizeEvent(self, QResizeEvent):
         print("width %d, height %d" % (self.width(), self.height()))
@@ -127,5 +115,3 @@ if __name__ == '__main__':
     w = Form()
     w.show()
     sys.exit(app.exec_())
-
-

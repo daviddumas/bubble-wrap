@@ -6,10 +6,13 @@ from PyQt5 import uic
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from canvas3d import circular_torus_of_revolution
+import datetime
 import mobius
 import numpy as np
 
 
+# >>> UI Helpers <<<
 def showListDialog(parent, ordered_dictionary, title):
     """
     Show a dropdown Dialog to select some item
@@ -81,6 +84,7 @@ def showDropdownDialog(parent, items, title):
     dialog.exec_()
     return response[0]
 
+
 def showProgressDialog(parent, progress_data, title="Loading..."):
     """
     Show a progress Dialog to select some item
@@ -118,6 +122,22 @@ def showProgressDialog(parent, progress_data, title="Loading..."):
 
     dialog.exec_()
 
+
+class UnifiedEmbeddedCirclePacking:
+    def __init__(self):
+        self.opened_metadata = {}
+        self.reset_metadata()
+        self.opened_dcel = circular_torus_of_revolution(4, 4, rmaj=1, rmin=0.5)
+        self.circles = []
+        self.circles_optimize = [[]]
+        self.dual_graph = False
+        self.packing_trans = [np.array(((1, 0), (0, 1)), dtype='complex')]
+
+        self.progressValue = [0]
+
+    def reset_metadata(self):
+        self.opened_metadata = {"schema_version": "0.2", "schema": "cpj",
+                                           "timestamp": datetime.datetime.utcnow().isoformat() + 'Z'}
 
 # >>> Threading Tools used for Enhanced Performance <<<
 class OptimizeCirclesThread(QThread):
@@ -173,10 +193,10 @@ class OptimizeCirclesThread(QThread):
                 outCir.append([self.C[i][0], v, dualgraph_part])
 
             if i % 50 == 0:
-                self.parent().delegate.progressValue[0] = 100 * (i+1) / len(m_circles)
+                self.parent().delegate.uecp.progressValue[0] = 100 * (i+1) / len(m_circles)
                 self.parent().draw_trigger.emit()
 
         self.OC[0] = outCir.copy()
-        self.parent().delegate.progressValue[0] = 100
-        print("Done! Optimized %d circles" % len(self.OC[0]), "dgraph", dgraphcount)
+        self.parent().delegate.uecp.progressValue[0] = 100
+        print("Done! Optimized %d circles." % len(self.OC[0]), "d-graph:", dgraphcount)
         self.parent().draw_trigger.emit()

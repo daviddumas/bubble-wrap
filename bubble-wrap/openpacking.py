@@ -21,6 +21,10 @@ def openPacking(parent, ondone):
     :param ondone:
     :return:
     """
+
+    # set unified embedded circle packing holder
+    uecp = parent.mainWidget.uecp
+
     pared_wordlist = {x.strip() for x in bz2.open('data/words/g2-commgen-pared-norm50.txt.bz2', 'rt')}
 
     file = QFileDialog.getOpenFileName(parent=parent)
@@ -29,7 +33,7 @@ def openPacking(parent, ondone):
     print(len(file[0]))
     print("Open a new file: %s" % str(file[0]))
 
-    parent.mainWidget.opened_metadata, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
+    meta, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
 
     # SHOW Packing DIALOG
     if isinstance(P, list):
@@ -53,7 +57,8 @@ def openPacking(parent, ondone):
 
     X0 = P[mkey]
 
-    parent.mainWidget.opened_dcel = D
+    uecp.opened_metadata = meta
+    uecp.opened_dcel = D
 
     # SOLVE
     if dcel.oriented_manifold_type(D)['genus'] == 2:
@@ -75,6 +80,7 @@ def open_genus2(parent, D, chains, X0, ondone, words=None):
     :param words:
     :return:
     """
+
     rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'a2', 'b1', 'b2']}
 
     def commutator(a, b):
@@ -137,6 +143,7 @@ def open_genus1(parent, D, chains, X0, ondone, words=None):
     :param words:
     :return:
     """
+
     rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'b1']}
 
     def commutator(a, b):
@@ -207,6 +214,9 @@ class FindWordsThread(QThread):
         self.char_list = char_list
         self.known_words = known_words
 
+        # set unified embedded circle packing holder
+        self.uecp = parent.mainWidget.uecp
+
     def run(self):
 
         def getNormCenter(c):
@@ -221,8 +231,10 @@ class FindWordsThread(QThread):
 
         c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
 
-        self.parent().mainWidget.circles = []  # Will store circles for the Fuchsian (KAT) picture
-        self.parent().mainWidget.circles_optimize = [[]]
+        # TODO: maybe use a reset function for these?
+        self.uecp.circles = []  # Will store circles for the Fuchsian (KAT) picture
+        self.uecp.circles_optimize = [[]]
+
         centers = []
         omit_circles = []
 
@@ -231,7 +243,7 @@ class FindWordsThread(QThread):
             h = self.D.hol(ch, self.X0)
             c1 = c0.transform_gl2(h).transform_sl2(self.mnormKAT)
             v0 = ch[-1].src
-            self.parent().mainWidget.circles.append([c1, v0, True])
+            self.uecp.circles.append([c1, v0, True])
             omit_circles.append(getNormCenter(c1))
 
         # If there are no known words, calculate them here
@@ -256,7 +268,7 @@ class FindWordsThread(QThread):
                             print("line")
                         if not c.contains_infinity and np.abs(c.radius) >= 0.005 or c.contains_infinity:
                             v0 = ch[-1].src
-                            self.parent().mainWidget.circles.append([c, v0, False])
+                            self.uecp.circles.append([c, v0, False])
 
                         if not c.contains_infinity and np.abs(c.radius) < 0.00025:
                             return False
@@ -280,7 +292,7 @@ class FindWordsThread(QThread):
                 find_word(w_list=self.char_list)
 
                 # reflect progress on progress bar
-                self.parent().mainWidget.progressValue[0] = int((i + 1) / len(self.vchains) * 100)
+                self.uecp.progressValue[0] = int((i + 1) / len(self.vchains) * 100)
                 self.parent().draw_trigger.emit()
         else:
             # If the words are known, iterate over all words
@@ -291,10 +303,10 @@ class FindWordsThread(QThread):
                     c = c1.transform_sl2(self.Rho[w]).transform_sl2(self.mnormKAT)
                     if getNormCenter(c) not in omit_circles:
                         v0 = ch[-1].src
-                        self.parent().mainWidget.circles.append([c, v0, False])
+                        self.uecp.circles.append([c, v0, False])
 
                 # reflect progress on progress bar
-                self.parent().mainWidget.progressValue[0] = int((i + 1) / len(self.vchains) * 100)
+                        self.uecp.progressValue[0] = int((i + 1) / len(self.vchains) * 100)
                 self.parent().draw_trigger.emit()
 
         # Force update will require the UI to optimize the circle packing for snappy interaction

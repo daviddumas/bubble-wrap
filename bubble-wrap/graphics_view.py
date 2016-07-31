@@ -9,13 +9,12 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtOpenGL import *
 from widgets import *
 from math import sqrt, sin, cos
-from canvas3d import circular_torus_of_revolution, cylinder_of_revolution
 import numpy as np
 import mobius
-import cocycles
 import tools
 
-class glWidget(QGLWidget):
+
+class GLWidget(QGLWidget):
 
     def __init__(self, delegate):
 
@@ -36,6 +35,9 @@ class glWidget(QGLWidget):
         self.zoom = 45
         self.delegate = delegate
 
+        # set unified embedded circle packing holder
+        self.uecp = self.delegate.uecp
+
     def paintGL(self):
 
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
@@ -46,42 +48,28 @@ class glWidget(QGLWidget):
         GL.glRotate(self.rY, 0, 1, 0)
         GL.glRotate(self.rZ, 0, 0, 1)
 
-        if self.delegate.opened_metadata is not None and float(self.delegate.opened_metadata["schema_version"]) >= 0.2:
-            if self.delegate.opened_dcel is not None:
+        if self.uecp.opened_metadata is not None and float(self.uecp.opened_metadata["schema_version"]) >= 0.2:
+            if self.uecp.opened_dcel is not None:
                 try:
                     GL.glColor4f(0.0, 0.0, 0.0, 0.2)
 
                     GL.glPolygonMode(GL.GL_FRONT, GL.GL_FILL)
                     GL.glPolygonMode(GL.GL_BACK, GL.GL_LINE)
-                    self.drawShape(self.delegate.opened_dcel)
+                    self.draw_shape(self.uecp.opened_dcel)
 
                     GL.glColor4f(0.0, 0.0, 0.0, 1)
 
                     GL.glPolygonMode(GL.GL_FRONT, GL.GL_LINE)
 
-                    self.drawShape(self.delegate.opened_dcel)
+                    self.draw_shape(self.uecp.opened_dcel)
                 except(Exception):
                     pass # print(self.delegate.opened_dcel)
         else:
             print("Unable to display shape because there is no correct embedding in the opened file")
 
-        # posx, posy = 0, 0
-        # sides = 32
-        # radius = 1.5
-        # glColor3f(0.1, 0.1, 0.1)
-        # glPolygonMode(GL_FRONT, GL_FILL)
-        # glPolygonMode(GL_BACK, GL_FILL)
-        # glBegin(GL_POLYGON)
-        # for i in range(sides):
-        #     cosine = radius * cos(i * 2 * pi / sides) + posx
-        #     sine = radius * sin(i * 2 * pi / sides) + posy
-        #     glVertex2f(cosine, sine)
-        #
-        # glEnd()
-
         GL.glFlush()
 
-    def drawShape(self, D):
+    def draw_shape(self, D):
         GL.glBegin(GL.GL_TRIANGLES)
         for face in D.F:
             e0 = face.edge
@@ -120,7 +108,6 @@ class glWidget(QGLWidget):
 
         GL.glClearDepth(1.0)
         GL.glDepthFunc(GL.GL_LESS)
-        #GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glEnable(GL.GL_MULTISAMPLE)
         GL.glShadeModel(GL.GL_SMOOTH)
         GL.glEnable(GL.GL_BLEND)
@@ -134,26 +121,28 @@ class glWidget(QGLWidget):
 
     def fix_size(self):
         side = min(self.width(), self.height())
-        GL.glViewport((self.width() - side) // 2, (self.height() - side) // 2, side, side)
+        # GL.glViewport((self.width() - side) // 2, (self.height() - side) // 2, side, side)
+        GL.glViewport(0, 0, self.width(), self.height())
 
         # fixes aspect and size of viewport when viewport is resized
         GL.glMatrixMode(GL.GL_PROJECTION)
         GL.glLoadIdentity()
-        aspect = self.width() / self.height() if platform.system() == 'Darwin' else 1
+        aspect = self.width() / self.height()  # if platform.system() == 'Darwin' else (self.width() / self.height())
         gluPerspective(self.zoom, aspect, 0.1, 100.0)
         try:
             GL.glMatrixMode(GL.GL_MODELVIEW)
         except(Exception):
             print("zoomed in too much!!")
 
-class MyScene(QWidget):
+class CirclePackingView(QWidget):
     draw_trigger = pyqtSignal()
 
     def __init__(self, delegate, parent=None):
         super().__init__(parent)
         self.delegate = delegate
 
-
+        # set unified embedded circle packing holder
+        self.uecp = self.delegate.uecp
 
         self.optimize_thread = None
 
@@ -198,7 +187,7 @@ class MyScene(QWidget):
         # Detect if circle packing optimization is needed
         sameT = False
         try:
-            if self.lT != d.packing_trans:
+            if self.lT != self.uecp.packing_trans:
                 self.force_update = True
             else:
                 sameT = True
@@ -214,7 +203,7 @@ class MyScene(QWidget):
                 self.optimize_thread.cancel = True
 
             # begin new optimization thread
-            self.optimize_thread = tools.OptimizeCirclesThread(self, d.circles, d.circles_optimize, d.packing_trans[0], self.display_params)
+            self.optimize_thread = tools.OptimizeCirclesThread(self, self.uecp.circles, self.uecp.circles_optimize, self.uecp.packing_trans[0], self.display_params)
             self.optimize_thread.start(priority=QThread.LowPriority)
 
             # reset (dual graph)
@@ -223,18 +212,18 @@ class MyScene(QWidget):
         # >>> ALL Circles beyond this point are optimized <<<
 
         # transform circles
-        T = mobius.make_sl2(d.packing_trans[0])
-        if not sameT or len(self.m_circles) != len(d.circles_optimize[0]):
+        T = mobius.make_sl2(self.uecp.packing_trans[0])
+        if not sameT or len(self.m_circles) != len(self.uecp.circles_optimize[0]):
             self.m_circles = []
-            for ci in d.circles_optimize[0]:
+            for ci in self.uecp.circles_optimize[0]:
                 # print(ci[0])
                 self.m_circles.append((ci[0].transform_sl2(T), ci[1], ci[2]))
-            self.lT = d.packing_trans.copy()
+            self.lT = self.uecp.packing_trans.copy()
 
         # print off valence info
-        if d.opened_dcel is not None:
+        if self.uecp.opened_dcel is not None:
             self.infoPanel.clearInfo()
-            valences = get_valence_dict(d.opened_dcel.V)
+            valences = get_valence_dict(self.uecp.opened_dcel.V)
             for k in valences:
                 self.infoPanel.addInfo("Valence %s" % k, "%s vertices" % valences[k])
         else:
@@ -267,13 +256,12 @@ class MyScene(QWidget):
                 print(x, y, ":", size)
                 print(cir.line_base, cir.line_angle)
 
-        # TODO: code for dual graph:
         # draw dual graph
         v_to_v_drawn = []
-        if d.dual_graph and d.opened_dcel is not None:
+        if self.uecp.dual_graph and self.uecp.opened_dcel is not None:
             if self.v_to_c is None:
                 self.v_to_c = parse_circles(self.m_circles)
-            for edg in d.opened_dcel.UE:
+            for edg in self.uecp.opened_dcel.UE:
                 v = edg.src
                 v2 = edg.next.src
 
@@ -293,11 +281,11 @@ class MyScene(QWidget):
         self.drawWidgets(qp)
 
         # draw progress wheel
-        if d.progressValue[0] < 100:
+        if self.uecp.progressValue[0] < 100:
             pen = QPen(QColor(0, 191, 255))
             pen.setWidth(3)
             qp.setPen(pen)
-            qp.drawArc(self.dpad.target, 90*16, -int(d.progressValue[0]*3.6*16))
+            qp.drawArc(self.dpad.target, 90*16, -int(self.uecp.progressValue[0]*3.6*16))
             qp.setPen(Qt.black)
 
         qp.end()
@@ -354,7 +342,7 @@ class MyScene(QWidget):
             # reset/recenter view
             self.delegate.calculations.animate_attributes(self.display_params, {"zoom": 100, "pos": [0, 0]})
 
-        d.dual_graph = self.dgraphtog.isHit(mouse)
+        d.uecp.dual_graph = self.dgraphtog.isHit(mouse)
 
         # >>> Directional Pad (dpad) <<<
         # check for mouse interaction.  If there is a hit, trans will store the button pressed
@@ -468,9 +456,9 @@ class ControlGraphics:
     def __init__(self, delegate):
         self.delegate = delegate
 
-        self.delegate.opengl = glWidget(self.delegate)
+        self.delegate.opengl = GLWidget(self.delegate)
         self.delegate.opengl.setContentsMargins(0, 0, 0, 0)
-        self.delegate.scene2 = MyScene(self.delegate)
+        self.delegate.scene2 = CirclePackingView(self.delegate)
         self.delegate.scene2.setContentsMargins(0, 0, 0, 0)
 
         self.delegate.gv2.addWidget(self.delegate.scene2)

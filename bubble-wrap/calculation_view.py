@@ -125,6 +125,7 @@ def solve_circle_packing_from_torus(D):
 
     ser.zstorefn('output/torus/torus.cpz', D, chains, [X])
 
+
 class ControlCalculations(QObject):
     """
     Calculations controller attached to main delegate
@@ -135,6 +136,9 @@ class ControlCalculations(QObject):
     def __init__(self, d):
         super().__init__(parent=d)
         self.delegate = d
+
+        # set unified embedded circle packing holder
+        self.uecp = self.delegate.uecp
 
         # Bind the buttons from the UI (identifier names specified in *.ui file)
         self.bind_button(d.testbtn1)
@@ -177,8 +181,7 @@ class ControlCalculations(QObject):
         :param transformation:
         :return:
         """
-        d = self.delegate
-        d.packing_trans[0] = d.packing_trans[0].dot(np.array(transformation, dtype='complex'))
+        self.uecp.packing_trans[0] = self.uecp.packing_trans[0].dot(np.array(transformation, dtype='complex'))
         self.delegate.graphics.draw()
 
     def animate_all(self, transformation):
@@ -212,7 +215,7 @@ class MobiusAnimationThread(QThread):
         super().__init__(parent)
         self.FPS = 48
 
-        self.c_trans = parent.delegate.packing_trans
+        self.c_trans = self.delegate.uecp.packing_trans
         self.orig_trans = np.copy(self.c_trans[0])
         self.trans = transformation
         self.time = tmill
