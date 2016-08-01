@@ -170,10 +170,10 @@ class ControlCalculations(QObject):
         elif btn == d.invert_pack_btn:
             self.animate_all(np.array([[0, 1j], [1j, 0]]))
         elif btn == d.reset_trans_btn:
-            self.animate_all(np.linalg.inv(d.packing_trans[0]))
+            self.animate_all(np.linalg.inv(d.uecp.packing_trans[0]))
 
         elif btn == d.solve_btn:
-            solve_circle_packing_from_torus(self.delegate.m_dcel)
+            solve_circle_packing_from_torus(d.uecp.opened_dcel)
         elif btn == d.mobius_trans:
             d.uecp.mobius_trans_mode = d.mobius_trans.isChecked()
 
@@ -218,7 +218,7 @@ class MobiusAnimationThread(QThread):
         super().__init__(parent)
         self.FPS = 48
 
-        self.c_trans = self.delegate.uecp.packing_trans
+        self.c_trans = parent.uecp.packing_trans
         self.orig_trans = np.copy(self.c_trans[0])
         self.trans = transformation
         self.time = tmill

@@ -55,6 +55,8 @@ def openPacking(parent, ondone):
 
     X0 = P[mkey]
 
+    print(X0)
+
     uecp.opened_metadata = meta
     uecp.opened_dcel = D
 

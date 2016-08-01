@@ -52,7 +52,9 @@ def sl2_rho(m):
 
 def three_point_sl2(p1, p2, p3, q1, q2, q3):
     """Transformation from p1 -> q1, p2 -> q2, p3 -> q3"""
-    a = np.linalg.det(np.array(((p1 * q1, q1, 1), (p2 * q2, q2, 1), (p3 * q3, q3, 1))))
+    a = np.linalg.det(np.array(((p1 * q1, q1, 1),
+                                (p2 * q2, q2, 1),
+                                (p3 * q3, q3, 1))))
 
     b = np.linalg.det(np.array(((p1 * q1, p1, q1),
                                 (p2 * q2, p2, q2),
