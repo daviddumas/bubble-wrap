@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 """Render a list of circles with matplotlib, save as PNG"""
 
-import sys
 import os
+import sys
+
 import matplotlib.pyplot as plt
 
 fn = sys.argv[1]

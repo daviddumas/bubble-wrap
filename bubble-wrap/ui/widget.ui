@@ -78,7 +78,7 @@
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0">
+    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0,0">
      <property name="spacing">
       <number>0</number>
      </property>
@@ -259,6 +259,13 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="mobius_trans">
+       <property name="text">
+        <string>mobius transform</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
-import sys
 import re
+import sys
 
 PROD = re.compile('\s*\*+\s*')
 

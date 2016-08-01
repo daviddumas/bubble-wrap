@@ -1,7 +1,9 @@
 """Doubly-connected edge list"""
 
 import uuid
+
 import numpy as np
+
 
 class DCEL:
     """Doubly-connected edge list"""

@@ -1,10 +1,10 @@
-import circle as circle
-import mobius as mobius
-import serialization as ser
 import numpy as np
 from PyQt5.QtCore import *
 
+import circle as circle
 import lsons as lsons
+import mobius as mobius
+import serialization as ser
 from interpolators import *
 
 
@@ -146,6 +146,7 @@ class ControlCalculations(QObject):
         self.bind_button(d.testbtn3)
         self.bind_button(d.reset_trans_btn)
         self.bind_button(d.solve_btn)
+        self.bind_button(d.mobius_trans)
 
     def bind_button(self, btn):
         # connects buttons to code
@@ -173,6 +174,8 @@ class ControlCalculations(QObject):
 
         elif btn == d.solve_btn:
             solve_circle_packing_from_torus(self.delegate.m_dcel)
+        elif btn == d.mobius_trans:
+            d.uecp.mobius_trans_mode = d.mobius_trans.isChecked()
 
     # >>> The following methods apply either an transformation adjustment or animation <<<
     def adjust_all(self, transformation):

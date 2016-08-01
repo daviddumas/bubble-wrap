@@ -1,17 +1,17 @@
 # Installation command:
 # pip3 install PyOpenGL PyOpenGL_accelerate
 
-import platform
+from math import sqrt, sin, cos
 
+import numpy as np
 from OpenGL import GL
 from OpenGL.GLU import gluPerspective
-from PyQt5.QtWidgets import *
 from PyQt5.QtOpenGL import *
-from widgets import *
-from math import sqrt, sin, cos
-import numpy as np
+from PyQt5.QtWidgets import *
+
 import mobius
 import tools
+from widgets import *
 
 
 class GLWidget(QGLWidget):
@@ -148,6 +148,7 @@ class CirclePackingView(QWidget):
 
         # display_params (zoom, pos:[relative to center])
         self.display_params = {"zoom": 100, "pos": [0, 0], "start_pos": [0, 0], "center": [0, 0], "width": 0, "height": 0}
+        self.last_fixed_points = {"fp1": None, "fp2": None, "mouse": None}
 
         self.dpad = TranslateWidget()
         self.dgraphtog = DualGraphToggleWidget()
@@ -183,6 +184,12 @@ class CirclePackingView(QWidget):
 
         zoom = self.display_params["zoom"]
         offset = self.display_params["pos"].copy()
+
+        qp.setPen(Qt.darkGreen)
+        qp.drawEllipse(self.center[0] + offset[0] + zoom * (0.5 - 0.02),
+                       self.center[1] + offset[1], zoom * (0.02 * 2), zoom * (0.02 * 2))
+        qp.drawEllipse(self.center[0] + offset[0] + zoom * (-0.5 - 0.02),
+                       self.center[1] + offset[1], zoom * (0.02 * 2), zoom * (0.02 * 2))
 
         # Detect if circle packing optimization is needed
         sameT = False
@@ -360,12 +367,32 @@ class CirclePackingView(QWidget):
         if attr_changes is not None:
             self.delegate.calculations.animate_attributes(self.display_params, attr_changes)
 
+        # for mobius transform
+        mouse_point = complex(
+            (mouse.pos().x() - self.center[0] - self.display_params["pos"][0]) / self.display_params["zoom"],
+            (mouse.pos().y() - self.center[1] - self.display_params["pos"][1]) / self.display_params["zoom"])
+        self.last_fixed_points["mouse"] = mouse_point
+
         d.graphics.draw()
 
     def mouseMoveEvent(self, mouse):
-        # move packing around with cursor
-        self.display_params["pos"][0] = self.display_params["start_pos"][0] + mouse.pos().x()
-        self.display_params["pos"][1] = self.display_params["start_pos"][1] + mouse.pos().y()
+        if self.uecp.mobius_trans_mode:
+            fixed_point1 = 0.5 + 0j
+            fixed_point2 = -0.5 + 0j
+            mouse_point = complex((mouse.pos().x() - self.center[0] - self.display_params["pos"][0]) / self.display_params["zoom"],
+                                  (mouse.pos().y() - self.center[1] - self.display_params["pos"][1]) / self.display_params["zoom"])
+            if self.last_fixed_points["fp1"] is not None:
+                T = mobius.three_point_sl2(self.last_fixed_points["fp1"], self.last_fixed_points["mouse"], self.last_fixed_points["fp2"],
+                                           fixed_point1, mouse_point, fixed_point2)
+                self.uecp.packing_trans[0] = self.uecp.packing_trans[0].dot(T)
+
+            self.last_fixed_points["fp1"] = fixed_point1
+            self.last_fixed_points["fp2"] = fixed_point2
+            self.last_fixed_points["mouse"] = mouse_point
+        else:
+            # move packing around with cursor
+            self.display_params["pos"][0] = self.display_params["start_pos"][0] + mouse.pos().x()
+            self.display_params["pos"][1] = self.display_params["start_pos"][1] + mouse.pos().y()
         self.update()
 
     def wheelEvent(self, event):

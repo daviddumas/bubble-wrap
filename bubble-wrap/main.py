@@ -5,16 +5,15 @@ __version__ = "0.2.1 (pre-alpha)"
 import sys
 
 import numpy as np
-
 from PyQt5 import uic
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 
+import tools
 from calculation_view import ControlCalculations
+from canvas3d import circular_torus_of_revolution, cylinder_of_revolution
 from graphics_view import ControlGraphics
 from openpacking import openPacking
-from canvas3d import circular_torus_of_revolution, cylinder_of_revolution
-import tools
 
 
 class Form(QMainWindow):

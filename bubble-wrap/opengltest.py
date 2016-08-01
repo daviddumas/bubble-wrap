@@ -1,16 +1,17 @@
 # Installation command:
 # pip3 install PyOpenGL PyOpenGL_accelerate
 
+from math import *
+
+import PyQt5.QtCore as QtCore
+import numpy as np
 from OpenGL.GL import *
 from OpenGL.GLU import *
-from PyQt5.QtWidgets import *
 from PyQt5.QtOpenGL import *
-from widgets import *
-import PyQt5.QtCore as QtCore
-from math import *
-import numpy as np
+from PyQt5.QtWidgets import *
 
 from canvas3d import circular_torus_of_revolution
+
 
 class MainWindow(QWidget):
     def __init__(self):

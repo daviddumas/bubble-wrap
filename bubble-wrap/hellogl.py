@@ -42,15 +42,16 @@
 #############################################################################
 
 
+import math
+import random
 import sys
-import math, random
 
 from PyQt5.QtCore import (QPoint, QPointF, QRect, QRectF, QSize, Qt, QTime,
                           QTimer)
 from PyQt5.QtGui import (QBrush, QColor, QFontMetrics, QImage, QPainter,
                          QRadialGradient)
-from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtOpenGL import QGL, QGLFormat, QGLWidget
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
 try:
     from OpenGL.GL import *

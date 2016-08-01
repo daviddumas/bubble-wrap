@@ -2,14 +2,16 @@
 tools.py
 """
 
+import datetime
+
+import numpy as np
 from PyQt5 import uic
-from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from canvas3d import circular_torus_of_revolution
-import datetime
+from PyQt5.QtWidgets import *
+
 import mobius
-import numpy as np
+from canvas3d import circular_torus_of_revolution
 
 
 # >>> UI Helpers <<<
@@ -131,6 +133,7 @@ class UnifiedEmbeddedCirclePacking:
         self.circles = []
         self.circles_optimize = [[]]
         self.dual_graph = False
+        self.mobius_trans_mode = False
         self.packing_trans = [np.array(((1, 0), (0, 1)), dtype='complex')]
 
         self.progressValue = [0]

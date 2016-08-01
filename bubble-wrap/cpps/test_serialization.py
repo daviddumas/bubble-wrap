@@ -1,10 +1,10 @@
 """Write and read back DCEL, compare results"""
+import numpy as np
+
+import cocycles
+import dcel
 import serialization as ser
 import triangulations
-import dcel
-import cocycles
-import numpy as np
-from collections import defaultdict,Mapping
 
 OUTPATH = 'output/test/'
 

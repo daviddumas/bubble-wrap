@@ -9,7 +9,9 @@
 # warranty.
 
 from __future__ import print_function
+
 import numpy as np
+
 
 class SolverException(Exception):
     pass

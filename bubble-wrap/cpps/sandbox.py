@@ -1,5 +1,5 @@
-import triangulations
 import dcel
+import triangulations
 
 mD1,t1,b1 = triangulations.cylinder(5,5)
 t1stop = t1.boundary_forward(1)

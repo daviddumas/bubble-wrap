@@ -8,8 +8,8 @@ Date: June 8th, 2016
 import sys
 
 from PyQt5 import uic
-from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 V_NUM = "0.1"

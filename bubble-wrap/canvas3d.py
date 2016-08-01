@@ -4,10 +4,10 @@
 import math
 from math import sin, cos
 
-import dcel
 import numpy as np
 from OpenGL.GL import *
 
+import dcel
 from cocycles import InterstitialDCEL
 from embeddings import embedded_torus, embedded_cylinder
 

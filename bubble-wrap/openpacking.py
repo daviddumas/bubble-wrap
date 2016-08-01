@@ -2,16 +2,14 @@
 Open a Circle Packing from a *.cpz file
 """
 
+import bz2
 from collections import OrderedDict
 
-import numpy as np
-
-import cocycles
-import serialization as ser
-import dcel
 import circle
+import cocycles
+import dcel
+import serialization as ser
 from tools import *
-import bz2
 
 
 def openPacking(parent, ondone):

@@ -1,8 +1,7 @@
 # This script is only ever needed ONCE;  It marks some edges on a genus 2 DCEL previously stored.
-import serialization as ser
-import dcel
 import numpy as np
-import sys
+
+import serialization as ser
 
 np.set_printoptions(suppress=True)
 meta,D,ch,P = ser.zloadfn('output/KAT/g2-5x5-c4.KAT-cand6.cpz')

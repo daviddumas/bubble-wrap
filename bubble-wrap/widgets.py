@@ -1,7 +1,8 @@
+import math
+from collections import OrderedDict
+
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from collections import OrderedDict
-import math
 
 
 class BaseWidget:

@@ -1,12 +1,11 @@
 #!/usr/bin/python3
 """Print info about a CPJ or CPZ file"""
-import serialization as ser
-import dcel
-import sys
-import textwrap
-import collections
-
 import argparse
+import collections
+import textwrap
+
+import serialization as ser
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('input',
                     help='Input file (CPJ or CPZ)')

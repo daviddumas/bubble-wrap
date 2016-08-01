@@ -11,10 +11,10 @@
 ## Public License (http://www.gnu.org/licenses/gpl.txt).
 ######################################################################
 
+import re
+
 from numpy import *
 from numpy import linalg
-import re
-import string
 
 lcase = 'abcdefghijklmnopqrstuvwxyz'
 ucase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'

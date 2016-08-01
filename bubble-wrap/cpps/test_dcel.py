@@ -2,9 +2,10 @@
 
 # TODO: Update this to do more; now it only tests reverse_orientation()
 
-import triangulations
-import dcel
 from collections import defaultdict
+
+import dcel
+import triangulations
 
 D1,t1,b1 = triangulations.cylinder(5,5)
 t1g = t1.boundary_forward(2)

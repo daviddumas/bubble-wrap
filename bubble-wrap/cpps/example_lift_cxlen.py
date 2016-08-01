@@ -1,14 +1,13 @@
 """Find a Fuchsian starting point then lift a path"""
 
 import numpy as np
+
 import circle
 import cocycles
-import triangulations
 import dcel
 import lsons
-import sys
 import mobius
-from collections import defaultdict
+import triangulations
 
 np.set_printoptions(suppress=True)
 

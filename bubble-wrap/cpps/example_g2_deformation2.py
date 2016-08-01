@@ -1,10 +1,8 @@
-import serialization as ser
-import dcel
-import cocycles
-import mobius
-import circle
 import numpy as np
+
+import cocycles
 import lsons
+import serialization as ser
 
 np.set_printoptions(suppress=True)
 meta,D,ch,P = ser.zloadfn('output/KAT/g2-5x5-c4.KAT-cand6.cpz',cls=cocycles.InterstitialDCEL)
