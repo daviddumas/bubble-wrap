@@ -19,6 +19,8 @@ Requirements
 
 * Python 3.4+
 * PyQt5
+* Numpy
+* PyOpenGL
 
 
 Development Status
