@@ -244,7 +244,11 @@ class CirclePackingView(QWidget):
                 # add ellipses to an array for optimization
                 if v.valence > 6:
                     qp.setPen(Qt.red)
+                    if cir.radius > 0:
+                        qp.setBrush(QColor(255, 0, 0, 100))
                 else:
+                    if cir.radius > 0:
+                        qp.setBrush(QColor(0, 0, 0, 50))
                     qp.setPen(Qt.black)
 
                 qp.drawEllipse(self.center[0] + offset[0] + zoom * (cir.center.real - cir.radius),
@@ -262,6 +266,7 @@ class CirclePackingView(QWidget):
                             x + size * cos(cir.line_angle), y + size * sin(cir.line_angle))
                 print(x, y, ":", size)
                 print(cir.line_base, cir.line_angle)
+            qp.setBrush(QColor(0, 0, 0, 0))
 
         # draw dual graph
         v_to_v_drawn = []
