@@ -6,6 +6,7 @@ import lsons as lsons
 import mobius as mobius
 import serialization as ser
 from interpolators import *
+import openpacking
 
 
 def solve_circle_packing_from_torus(D):
@@ -141,12 +142,12 @@ class ControlCalculations(QObject):
         self.uecp = self.delegate.uecp
 
         # Bind the buttons from the UI (identifier names specified in *.ui file)
-        self.bind_button(d.testbtn1)
         self.bind_button(d.invert_pack_btn)
-        self.bind_button(d.testbtn3)
         self.bind_button(d.reset_trans_btn)
         self.bind_button(d.solve_btn)
-        self.bind_button(d.mobius_trans)
+        self.bind_button(d.select_packing)
+
+        self.draw_trigger.connect(self.delegate.graphics.draw)
 
     def bind_button(self, btn):
         # connects buttons to code
@@ -158,14 +159,12 @@ class ControlCalculations(QObject):
         :param btn:
         :return: void
         """
-        T = ((1.005 + 1.005j, 0.01),
-             (0.5, 1 + 0.5j))
 
         d = self.delegate
-        if btn == d.testbtn1:
-            self.adjust_all(T)
-        elif btn == d.testbtn3:
-            self.animate_all(T)
+        if btn == d.select_packing:
+            if d.select_packing_dropdown.model().rowCount() > 0:
+                loc = d.select_packing_dropdown.currentIndex()
+                openpacking.from_select_packing(self, self.delegate, loc, lambda:self.delegate.graphics.draw())
 
         elif btn == d.invert_pack_btn:
             self.animate_all(np.array([[0, 1j], [1j, 0]]))
@@ -174,8 +173,6 @@ class ControlCalculations(QObject):
 
         elif btn == d.solve_btn:
             solve_circle_packing_from_torus(d.uecp.opened_dcel)
-        elif btn == d.mobius_trans:
-            d.uecp.mobius_trans_mode = d.mobius_trans.isChecked()
 
     # >>> The following methods apply either an transformation adjustment or animation <<<
     def adjust_all(self, transformation):
@@ -198,15 +195,9 @@ class ControlCalculations(QObject):
         th = MobiusAnimationThread(self, transformation, 500)
         th.start()
 
-        # The trigger is required when updating the circles every frame
-        self.draw_trigger.connect(self.delegate.graphics.draw)
-
     def animate_attributes(self, attr_obj, changes):
         th = AttributeAnimationThread(self, attr_obj, changes, 500)
         th.start()
-
-        # The trigger is required when updating the circles every frame
-        self.draw_trigger.connect(self.delegate.graphics.draw)
 
 
 class MobiusAnimationThread(QThread):

@@ -50,7 +50,7 @@ class Form(QMainWindow):
         self.draw_trigger.connect(self.mainWidget.graphics.draw)
 
     def openNew(self):
-        openPacking(self, lambda: self.mainWidget.graphics.draw())
+        openPacking(self, self.mainWidget, lambda: self.mainWidget.graphics.draw())
 
     def createNew(self):
         uecp = self.mainWidget.uecp
@@ -69,7 +69,7 @@ class Form(QMainWindow):
         # reset circles
         uecp.circles = []
         uecp.circles_optimize = [[]]
-        uecp.reset_metadata()
+        uecp.reset_data()
 
         self.mainWidget.graphics.draw()
 

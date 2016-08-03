@@ -12,64 +12,80 @@ import serialization as ser
 from tools import *
 
 
-def openPacking(parent, ondone):
+def openPacking(parent, delegate, ondone):
     """
     Open a circle packing with genus 1 or 2
     :param parent:
     :param ondone:
     :return:
     """
-
     # set unified embedded circle packing holder
-    uecp = parent.mainWidget.uecp
+    uecp = delegate.uecp
 
-    pared_wordlist = {x.strip() for x in bz2.open('data/words/g2-commgen-pared-norm50.txt.bz2', 'rt')}
-
-    file = QFileDialog.getOpenFileName(parent=parent)
-    if file[0] == None or len(file[0]) < 5:
+    file = QFileDialog.getOpenFileName(parent=parent, initialFilter="CPZ (*.cpz)")
+    if file[0] is None or len(file[0]) < 5:
         return
     print(len(file[0]))
     print("Open a new file: %s" % str(file[0]))
 
     meta, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
 
-    # SHOW Packing DIALOG
-    if isinstance(P, list):
-        tempP = P.copy()
-        P={}
-        for i in range(len(tempP)):
-            P[str("Packing %d"%i)] = tempP[i]
-
-    try:
-        odict = OrderedDict.fromkeys(sorted(P, key=lambda x: float(x)))
-    except(Exception):
-        odict = OrderedDict.fromkeys(sorted(P))
+    odict = ordered_packing_list(P)
 
     # displays a drop down menu with all available circle packings
     mkey = showDropdownDialog(parent, odict, "Select a Packing")
 
-    if isinstance(mkey, int) and mkey == -1:
-        return
-    elif isinstance(mkey, int):
-        mkey = str(list(odict.keys())[mkey])
-
-    X0 = P[mkey]
-
-    print(X0)
+    model = standardModelFromDict(parent, odict)
+    delegate.select_packing_dropdown.setModel(model)
 
     uecp.opened_metadata = meta
     uecp.opened_dcel = D
+    uecp.all_packings = P
+    uecp.chains = chains
+
+    from_select_packing(parent, delegate, mkey, ondone)
+
+
+
+def from_select_packing(parent, delegate, mkey, ondone):
+    # set unified embedded circle packing holder
+    uecp = delegate.uecp
+
+    pared_wordlist = {x.strip() for x in bz2.open('data/words/g2-commgen-pared-norm50.txt.bz2', 'rt')}
+
+    odict = ordered_packing_list(uecp.all_packings)
+
+    if isinstance(mkey, int) and mkey == -1:
+        return
+    elif isinstance(uecp.all_packings, dict):
+        X0 = uecp.all_packings[str(list(odict.keys())[mkey])]
+    else:
+        X0 = uecp.all_packings[mkey]
+
+    print(X0)
 
     # SOLVE
-    if dcel.oriented_manifold_type(D)['genus'] == 2:
+    if dcel.oriented_manifold_type(uecp.opened_dcel)['genus'] == 2:
         # genus 2
-        open_genus2(parent, D, chains, X0, ondone=ondone, words=pared_wordlist)
-    elif dcel.oriented_manifold_type(D)['genus'] == 1:
+        open_genus2(parent, delegate, uecp.opened_dcel, uecp.chains, X0, ondone=ondone, words=pared_wordlist)
+    elif dcel.oriented_manifold_type(uecp.opened_dcel)['genus'] == 1:
         # genus 1 (torus)
-        open_genus1(parent, D, chains, X0, ondone=ondone)
+        open_genus1(parent, delegate, uecp.opened_dcel, uecp.chains, X0, ondone=ondone)
 
+def ordered_packing_list(P):
+    # SHOW Packing DIALOG
+    if isinstance(P, list):
+        tempP = P.copy()
+        P = {}
+        for i in range(len(tempP)):
+            P[str("Packing %d" % i)] = tempP[i]
+    try:
+        odict = OrderedDict.fromkeys(sorted(P, key=lambda x: float(x)))
+    except(Exception):
+        odict = OrderedDict.fromkeys(sorted(P))
+    return odict
 
-def open_genus2(parent, D, chains, X0, ondone, words=None):
+def open_genus2(parent, delegate, D, chains, X0, ondone, words=None):
     """
     Find a circle packing for a genus 2 surface
     :param parent:
@@ -127,12 +143,12 @@ def open_genus2(parent, D, chains, X0, ondone, words=None):
             vert_seen.add(ch[-1].src)
             vchains.add(ch)
 
-    findwords = FindWordsThread(parent, vchains, D, X0, Rho, mnormKAT, known_words=words)
+    findwords = FindWordsThread(parent, delegate, vchains, D, X0, Rho, mnormKAT, known_words=words)
     findwords.start()
 
     ondone()
 
-def open_genus1(parent, D, chains, X0, ondone, words=None):
+def open_genus1(parent, delegate, D, chains, X0, ondone, words=None):
     """
     Find a circle packing for a genus 1 surface (torus)
     :param parent:
@@ -192,18 +208,17 @@ def open_genus1(parent, D, chains, X0, ondone, words=None):
             vert_seen.add(ch[-1].src)
             vchains.add(ch)
 
-    findwords = FindWordsThread(parent, vchains, D, X0, Rho, ident, char_list="aAbB")
+    findwords = FindWordsThread(parent, delegate, vchains, D, X0, Rho, ident, char_list="aAbB")
     findwords.start()
 
     ondone()
-
 
 
 class FindWordsThread(QThread):
     """
     Find and Display the words of a circle packing in a separate thread so that the UI is not bogged down
     """
-    def __init__(self, parent, vchains, D, X0, Rho, mnormKAT, char_list="", known_words=None):
+    def __init__(self, parent, delegate, vchains, D, X0, Rho, mnormKAT, char_list="", known_words=None):
         super().__init__(parent)
 
         self.vchains = vchains
@@ -215,7 +230,8 @@ class FindWordsThread(QThread):
         self.known_words = known_words
 
         # set unified embedded circle packing holder
-        self.uecp = parent.mainWidget.uecp
+        self.uecp = delegate.uecp
+        self.delegate = delegate
 
     def run(self):
 
@@ -310,6 +326,6 @@ class FindWordsThread(QThread):
                 self.parent().draw_trigger.emit()
 
         # Force update will require the UI to optimize the circle packing for snappy interaction
-        self.parent().mainWidget.graphics.force_update()
+        self.delegate.graphics.force_update()
         # Tell the UI to redraw
         self.parent().draw_trigger.emit()

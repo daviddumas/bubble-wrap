@@ -8,6 +8,7 @@ from OpenGL import GL
 from OpenGL.GLU import gluPerspective
 from PyQt5.QtOpenGL import *
 from PyQt5.QtWidgets import *
+import PyQt5.QtCore as QtCore
 
 import mobius
 import tools
@@ -150,8 +151,8 @@ class CirclePackingView(QWidget):
         self.display_params = {"zoom": 100, "pos": [0, 0], "start_pos": [0, 0], "center": [0, 0], "width": 0, "height": 0}
         self.last_fixed_points = {"fp1": None, "fp2": None, "mouse": None}
 
-        self.dpad = TranslateWidget()
-        self.dgraphtog = DualGraphToggleWidget()
+        self.dgraphTog = DualGraphToggleWidget()
+        self.mobiusTog = MobiusToggleWidget()
         self.recenter = CenterWidget()
         self.izoom = PlusWidget()
         self.ozoom = MinusWidget()
@@ -168,6 +169,9 @@ class CirclePackingView(QWidget):
         self.mp = -1e10, -1e10
 
         self.draw_trigger.connect(self.update)
+
+        self.installEventFilter(self)
+        self.setToolTipDuration(1500)
 
     def paintEvent(self, QPaintEvent):
         # update sizes
@@ -297,23 +301,26 @@ class CirclePackingView(QWidget):
             pen = QPen(QColor(0, 191, 255))
             pen.setWidth(3)
             qp.setPen(pen)
-            qp.drawArc(self.dpad.target, 90*16, -int(self.uecp.progressValue[0]*3.6*16))
+            qp.drawArc(QRect(self.width - 30, self.height - 30, 20, 20),
+                       90 * 16, -int(self.uecp.progressValue[0] * 3.6 * 16))
             qp.setPen(Qt.black)
 
         qp.end()
 
     def drawWidgets(self, qp):
         # Update widget positions and draw them
-        self.dpad.setPos(self.width - 70, 20)
-        self.dpad.draw(qp)
-        self.izoom.setPos(self.width - 55, 80)
+
+        self.izoom.setPos(self.width - 55, 30)
         self.izoom.draw(qp)
-        self.ozoom.setPos(self.width - 55, 105)
+        self.ozoom.setPos(self.width - 55, 55)
         self.ozoom.draw(qp)
-        self.recenter.setPos(self.width - 55, 130)
+        self.recenter.setPos(self.width - 55, 80)
         self.recenter.draw(qp)
-        self.dgraphtog.setPos(self.width - 55, self.height - 55)
-        self.dgraphtog.draw(qp)
+
+        self.dgraphTog.setPos(self.width - 55, self.height - 95)
+        self.dgraphTog.draw(qp)
+        self.mobiusTog.setPos(self.width - 60, self.height - 65)
+        self.mobiusTog.draw(qp)
 
         self.infoPanel.setPos(0, self.height - self.infoPanel.height)
         self.infoPanel.draw(qp)
@@ -323,7 +330,6 @@ class CirclePackingView(QWidget):
         self.izoom.release()
         self.ozoom.release()
         self.recenter.release()
-        self.dpad.release()
 
         # force packing optimization and redraw
         self.force_update = True
@@ -354,24 +360,8 @@ class CirclePackingView(QWidget):
             # reset/recenter view
             self.delegate.calculations.animate_attributes(self.display_params, {"zoom": 100, "pos": [0, 0]})
 
-        d.uecp.dual_graph = self.dgraphtog.isHit(mouse)
-
-        # >>> Directional Pad (dpad) <<<
-        # check for mouse interaction.  If there is a hit, trans will store the button pressed
-        trans = self.dpad.isHit(mouse)
-        # change attributes accordingly
-        attr_changes = None
-        if trans == TranslateWidget.RIGHT:
-            attr_changes = {"pos": [pos_x - 20, pos_y]}
-        elif trans == TranslateWidget.LEFT:
-            attr_changes = {"pos": [pos_x + 20, pos_y]}
-        elif trans == TranslateWidget.UP:
-            attr_changes = {"pos": [pos_x, pos_y + 20]}
-        elif trans == TranslateWidget.DOWN:
-            attr_changes = {"pos": [pos_x, pos_y - 20]}
-        if attr_changes is not None:
-            self.delegate.calculations.animate_attributes(self.display_params, attr_changes)
-
+        d.uecp.dual_graph = self.dgraphTog.isActive(mouse)
+        d.uecp.mobius_trans_mode = self.mobiusTog.isActive(mouse)
         # for mobius transform
         mouse_point = complex(
             (mouse.pos().x() - self.center[0] - self.display_params["pos"][0]) / self.display_params["zoom"],
@@ -411,6 +401,26 @@ class CirclePackingView(QWidget):
 
         self.force_update = True
         self.update()
+
+    def eventFilter(self, object, event):
+        if event.type() == QtCore.QEvent.ToolTip:
+            print(event.pos().x(), event.pos().y())
+            if self.izoom.isHit(event):
+                self.setToolTip("zoom in")
+            elif self.ozoom.isHit(event):
+                self.setToolTip("zoom out")
+            elif self.recenter.isHit(event):
+                self.setToolTip("recenter")
+            elif self.dgraphTog.isHit(event):
+                self.setToolTip("toggle dual graph")
+            else:
+                self.setToolTip("")
+
+        return super().eventFilter(object, event)
+
+
+    def resizeEvent(self, QResizeEvent):
+        self.force_update = True
 
     @property
     def width(self):

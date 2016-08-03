@@ -55,12 +55,7 @@ def showDropdownDialog(parent, items, title):
     :param title: window title
     :return:
     """
-    model = QStandardItemModel(parent)
 
-    for k in items:
-        item = QStandardItem(k)
-        print(item.text())
-        model.appendRow(item)
 
     response = [-1]
 
@@ -71,6 +66,8 @@ def showDropdownDialog(parent, items, title):
     com = QComboBox()
 
     com.currentIndex()
+
+    model = standardModelFromDict(parent, items)
 
     dialog.comboBox.setModel(model)
 
@@ -86,6 +83,14 @@ def showDropdownDialog(parent, items, title):
     dialog.exec_()
     return response[0]
 
+def standardModelFromDict(parent, items):
+    model = QStandardItemModel(parent)
+
+    for k in items:
+        item = QStandardItem(k)
+        print(item.text())
+        model.appendRow(item)
+    return model
 
 def showProgressDialog(parent, progress_data, title="Loading..."):
     """
@@ -128,17 +133,23 @@ def showProgressDialog(parent, progress_data, title="Loading..."):
 class UnifiedEmbeddedCirclePacking:
     def __init__(self):
         self.opened_metadata = {}
-        self.reset_metadata()
-        self.opened_dcel = circular_torus_of_revolution(4, 4, rmaj=1, rmin=0.5)
+        self.opened_dcel = None
         self.circles = []
         self.circles_optimize = [[]]
+        self.all_packings = None
+        self.chains = None
         self.dual_graph = False
         self.mobius_trans_mode = False
         self.packing_trans = [np.array(((1, 0), (0, 1)), dtype='complex')]
 
         self.progressValue = [0]
 
-    def reset_metadata(self):
+        self.reset_data()
+
+    def reset_data(self):
+        self.opened_dcel = None
+        self.circles = []
+        self.circles_optimize = [[]]
         self.opened_metadata = {"schema_version": "0.2", "schema": "cpj",
                                            "timestamp": datetime.datetime.utcnow().isoformat() + 'Z'}
 

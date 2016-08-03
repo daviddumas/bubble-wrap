@@ -121,17 +121,25 @@ class MinusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
         super().__init__("ui/assets/minus_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/minus_act.png")
 
-class DualGraphToggleWidget(BaseWidget):
-    def __init__(self, targetQRect=QRectF(0,0,0,0)):
-        super().__init__("ui/assets/dual_graph_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/dual_graph_act.png")
+class ToggleWidget(BaseWidget):
+    def __init__(self, image_src=None, source=None, target=None, image2_src=None):
+        super().__init__(image_src, source, target, image2_src)
         self.active = False
 
-    def isHit(self, mouse):
+    def isActive(self, mouse):
         if super().isHit(mouse):
             self.active = not self.active
 
         self.hit = self.active
         return self.active
+
+class MobiusToggleWidget(ToggleWidget):
+    def __init__(self, targetQRect=QRectF(0,0,0,0)):
+        super().__init__("ui/assets/mobius_norm.png", QRectF(0,0,32,32), targetQRect, image2_src="ui/assets/mobius_act.png")
+
+class DualGraphToggleWidget(ToggleWidget):
+    def __init__(self, targetQRect=QRectF(0,0,0,0)):
+        super().__init__("ui/assets/dual_graph_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/dual_graph_act.png")
 
 class InfoWidget(BaseWidget):
     def __init__(self):
