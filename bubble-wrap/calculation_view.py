@@ -137,13 +137,14 @@ class ControlCalculations(QObject):
     def __init__(self, d):
         super().__init__(parent=d)
         self.delegate = d
+        self.th_m = None
+        self.th_a = None
 
         # set unified embedded circle packing holder
         self.uecp = self.delegate.uecp
 
         # Bind the buttons from the UI (identifier names specified in *.ui file)
         self.bind_button(d.invert_pack_btn)
-        self.bind_button(d.reset_trans_btn)
         self.bind_button(d.solve_btn)
         self.bind_button(d.select_packing)
 
@@ -168,8 +169,6 @@ class ControlCalculations(QObject):
 
         elif btn == d.invert_pack_btn:
             self.animate_all(np.array([[0, 1j], [1j, 0]]))
-        elif btn == d.reset_trans_btn:
-            self.animate_all(np.linalg.inv(d.uecp.packing_trans[0]))
 
         elif btn == d.solve_btn:
             solve_circle_packing_from_torus(d.uecp.opened_dcel)
@@ -192,12 +191,14 @@ class ControlCalculations(QObject):
         """
         # Create a new Animation Thread.  The new thread will insure our UI does not freeze.
         # The Animation Thread time is in milliseconds
-        th = MobiusAnimationThread(self, transformation, 500)
-        th.start()
+        if self.th_m is None or self.th_m.isFinished():
+            self.th_m = MobiusAnimationThread(self, transformation, 500)
+            self.th_m.start()
 
     def animate_attributes(self, attr_obj, changes):
-        th = AttributeAnimationThread(self, attr_obj, changes, 500)
-        th.start()
+        if self.th_a is None or self.th_a.isFinished():
+            self.th_a = AttributeAnimationThread(self, attr_obj, changes, 500)
+            self.th_a.start()
 
 
 class MobiusAnimationThread(QThread):

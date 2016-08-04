@@ -155,6 +155,7 @@ class CirclePackingView(QWidget):
         self.dgraphTog = DualGraphToggleWidget()
         self.mobiusTog = MobiusToggleWidget()
         self.recenter = CenterWidget()
+        self.mobius_reset = MobiusResetWidget()
         self.izoom = PlusWidget()
         self.ozoom = MinusWidget()
         self.infoPanel = InfoWidget()
@@ -323,6 +324,8 @@ class CirclePackingView(QWidget):
         self.dgraphTog.draw(qp)
         self.mobiusTog.setPos(self.width - 60, self.height - 65)
         self.mobiusTog.draw(qp)
+        self.mobius_reset.setPos(self.width - 90, self.height - 60)
+        self.mobius_reset.draw(qp)
 
         self.infoPanel.setPos(0, self.height - self.infoPanel.height)
         self.infoPanel.draw(qp)
@@ -332,6 +335,7 @@ class CirclePackingView(QWidget):
         self.izoom.release()
         self.ozoom.release()
         self.recenter.release()
+        self.mobius_reset.release()
 
         self.fixed_points["fp1_move"] = False
         self.fixed_points["fp2_move"] = False
@@ -357,16 +361,21 @@ class CirclePackingView(QWidget):
         if self.izoom.isHit(mouse):
             # zoom in
             # keeps circle packing centered when zooming
-            self.delegate.calculations.animate_attributes(self.display_params,
+            d.calculations.animate_attributes(self.display_params,
                 {"zoom":zoom * 1.5, "pos":[pos_x * 1.5, pos_y * 1.5]})
         elif self.ozoom.isHit(mouse):
             # zoom out
             # keeps circle packing centered when zooming
-            self.delegate.calculations.animate_attributes(self.display_params,
+            d.calculations.animate_attributes(self.display_params,
                 {"zoom": zoom / 1.5, "pos": [pos_x / 1.5, pos_y / 1.5]})
         elif self.recenter.isHit(mouse):
             # reset/recenter view
-            self.delegate.calculations.animate_attributes(self.display_params, {"zoom": 100, "pos": [0, 0]})
+            d.calculations.animate_attributes(self.display_params, {"zoom": 100, "pos": [0, 0]})
+        elif self.mobius_reset.isHit(mouse):
+            # reset the mobius transformation and fixed points
+            d.calculations.animate_all(mobius.sl2inv(d.uecp.packing_trans[0]))
+            self.fixed_points["fixed_point1"] = -100 + 0j
+            self.fixed_points["fixed_point2"] =  100 + 0j
 
         d.uecp.dual_graph = self.dgraphTog.isActive(mouse)
         d.uecp.mobius_trans_mode = self.mobiusTog.isActive(mouse)
@@ -385,9 +394,11 @@ class CirclePackingView(QWidget):
         pos_x = self.display_params["pos"][0]
         pos_y = self.display_params["pos"][1]
         zoom = self.display_params["zoom"]
+
         if self.uecp.mobius_trans_mode and not (self.fixed_points["fp1_move"] or self.fixed_points["fp2_move"]):
             print("here0")
             fixed_point1 = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]), complex((-pos_x + self.fixed_points["fixed_point1"]) / zoom, -pos_y / zoom))
+
             fixed_point2 = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]), complex((-pos_x + self.fixed_points["fixed_point2"]) / zoom, -pos_y / zoom))
             print(fixed_point1, fixed_point2, "fixed")
             mouse_point = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]), complex((mouse.pos().x() - self.center[0] - pos_x) / self.display_params["zoom"],
@@ -435,6 +446,8 @@ class CirclePackingView(QWidget):
                 self.setToolTip("recenter")
             elif self.dgraphTog.isHit(event):
                 self.setToolTip("toggle dual graph")
+            elif self.mobiusTog.isHit(event):
+                self.setToolTip("toggle möbius transform mode")
             else:
                 self.setToolTip("")
 

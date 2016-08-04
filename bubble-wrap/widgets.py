@@ -112,6 +112,10 @@ class CenterWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
         super().__init__("ui/assets/center_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/center_act.png")
 
+class MobiusResetWidget(BaseWidget):
+    def __init__(self, targetQRect=QRectF(0,0,0,0)):
+        super().__init__("ui/assets/mobius_reset_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/mobius_reset_act.png")
+
 class PlusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
         super().__init__("ui/assets/plus_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/plus_act.png")
