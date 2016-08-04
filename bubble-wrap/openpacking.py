@@ -189,6 +189,8 @@ def open_genus1(parent, delegate, D, chains, X0, ondone, words=None):
     # mnormKAT = mobius.center_four_points(fc[0], fa1[0], fc[1], fa2[0])
     # mnormKAT = recip.dot(mnormKAT)
     ident = np.array([[1, 0], [0, 1]])
+    # normalize the circle packing to the viewport
+    mob_zoom = np.array(((100, 0), (0, 0.01)), dtype='complex')
 
     import fgrep as fgrep
     Rho = fgrep.FreeGroup({'a': rho['a1'], 'b': rho['b1']}, inverter=mobius.sl2inv)
@@ -208,7 +210,7 @@ def open_genus1(parent, delegate, D, chains, X0, ondone, words=None):
             vert_seen.add(ch[-1].src)
             vchains.add(ch)
 
-    findwords = FindWordsThread(parent, delegate, vchains, D, X0, Rho, ident, char_list="aAbB")
+    findwords = FindWordsThread(parent, delegate, vchains, D, X0, Rho, mob_zoom, char_list="aAbB")
     findwords.start()
 
     ondone()
@@ -324,6 +326,11 @@ class FindWordsThread(QThread):
                 # reflect progress on progress bar
                         self.uecp.progressValue[0] = int((i + 1) / len(self.vchains) * 100)
                 self.parent().draw_trigger.emit()
+
+        # normalize the circle packing to the viewport
+        # mob_zoom = mobius.make_sl2(((10, 0), (0, 0.1)))
+        # for cir in self.uecp.circles:
+        #     cir[0] = cir[0].transform_sl2(mob_zoom)
 
         # Force update will require the UI to optimize the circle packing for snappy interaction
         self.delegate.graphics.force_update()

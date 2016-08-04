@@ -149,7 +149,8 @@ class CirclePackingView(QWidget):
 
         # display_params (zoom, pos:[relative to center])
         self.display_params = {"zoom": 100, "pos": [0, 0], "start_pos": [0, 0], "center": [0, 0], "width": 0, "height": 0}
-        self.last_fixed_points = {"fp1": None, "fp2": None, "mouse": None}
+        self.fixed_points = {"fp1": None, "fp2": None, "mouse": None, "fixed_point1": -100+0j, "fixed_point2": 100+0j, "fp1_move": False, "fp2_move": False}
+        self.mobius_history = {"current": None, "changing": None}
 
         self.dgraphTog = DualGraphToggleWidget()
         self.mobiusTog = MobiusToggleWidget()
@@ -188,12 +189,6 @@ class CirclePackingView(QWidget):
 
         zoom = self.display_params["zoom"]
         offset = self.display_params["pos"].copy()
-
-        qp.setPen(Qt.darkGreen)
-        qp.drawEllipse(self.center[0] + offset[0] + zoom * (0.5 - 0.02),
-                       self.center[1] + offset[1], zoom * (0.02 * 2), zoom * (0.02 * 2))
-        qp.drawEllipse(self.center[0] + offset[0] + zoom * (-0.5 - 0.02),
-                       self.center[1] + offset[1], zoom * (0.02 * 2), zoom * (0.02 * 2))
 
         # Detect if circle packing optimization is needed
         sameT = False
@@ -305,6 +300,13 @@ class CirclePackingView(QWidget):
                        90 * 16, -int(self.uecp.progressValue[0] * 3.6 * 16))
             qp.setPen(Qt.black)
 
+        # Fixed pointss
+        if self.uecp.mobius_trans_mode:
+            qp.setPen(Qt.darkGreen)
+            qp.setBrush(Qt.green)
+            qp.drawEllipse(self.center[0] + (self.fixed_points["fixed_point1"].real-5),  self.center[1] + (self.fixed_points["fixed_point1"].imag-5), 10, 10)
+            qp.drawEllipse(self.center[0] + (self.fixed_points["fixed_point2"].real-5), self.center[1] + (self.fixed_points["fixed_point2"].imag-5), 10, 10)
+
         qp.end()
 
     def drawWidgets(self, qp):
@@ -331,6 +333,9 @@ class CirclePackingView(QWidget):
         self.ozoom.release()
         self.recenter.release()
 
+        self.fixed_points["fp1_move"] = False
+        self.fixed_points["fp2_move"] = False
+
         # force packing optimization and redraw
         self.force_update = True
         self.delegate.graphics.draw()
@@ -340,6 +345,9 @@ class CirclePackingView(QWidget):
         pos_x = self.display_params["pos"][0]
         pos_y = self.display_params["pos"][1]
         zoom = self.display_params["zoom"]
+
+        self.mobius_history["current"] = self.uecp.packing_trans[0].copy()
+        self.mobius_history["changing"] = mobius.make_sl2(((1, 0), (0, 1)))
 
         self.display_params["start_pos"] = [pos_x - mouse.pos().x(),
                                             pos_y - mouse.pos().y()]
@@ -363,27 +371,41 @@ class CirclePackingView(QWidget):
         d.uecp.dual_graph = self.dgraphTog.isActive(mouse)
         d.uecp.mobius_trans_mode = self.mobiusTog.isActive(mouse)
         # for mobius transform
-        mouse_point = complex(
-            (mouse.pos().x() - self.center[0] - self.display_params["pos"][0]) / self.display_params["zoom"],
-            (mouse.pos().y() - self.center[1] - self.display_params["pos"][1]) / self.display_params["zoom"])
-        self.last_fixed_points["mouse"] = mouse_point
+        self.fixed_points["fp1"] = None
+        if d.uecp.mobius_trans_mode:
+            rp1 = QRect(self.fixed_points["fixed_point1"].real-5, self.fixed_points["fixed_point1"].imag-5, 10, 10)
+            rp2 = QRect(self.fixed_points["fixed_point2"].real-5, self.fixed_points["fixed_point2"].imag-5, 10, 10)
+            self.fixed_points["fp1_move"] = rp1.contains(mouse.pos().x() - self.center[0], mouse.pos().y() - self.center[1])
+            self.fixed_points["fp2_move"] = rp2.contains(mouse.pos().x() - self.center[0], mouse.pos().y() - self.center[1])
+            print(self.fixed_points["fp1_move"], self.fixed_points["fp2_move"])
 
         d.graphics.draw()
 
     def mouseMoveEvent(self, mouse):
-        if self.uecp.mobius_trans_mode:
-            fixed_point1 = 0.5 + 0j
-            fixed_point2 = -0.5 + 0j
-            mouse_point = complex((mouse.pos().x() - self.center[0] - self.display_params["pos"][0]) / self.display_params["zoom"],
-                                  (mouse.pos().y() - self.center[1] - self.display_params["pos"][1]) / self.display_params["zoom"])
-            if self.last_fixed_points["fp1"] is not None:
-                T = mobius.three_point_sl2(self.last_fixed_points["fp1"], self.last_fixed_points["mouse"], self.last_fixed_points["fp2"],
+        pos_x = self.display_params["pos"][0]
+        pos_y = self.display_params["pos"][1]
+        zoom = self.display_params["zoom"]
+        if self.uecp.mobius_trans_mode and not (self.fixed_points["fp1_move"] or self.fixed_points["fp2_move"]):
+            print("here0")
+            fixed_point1 = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]), complex((-pos_x + self.fixed_points["fixed_point1"]) / zoom, -pos_y / zoom))
+            fixed_point2 = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]), complex((-pos_x + self.fixed_points["fixed_point2"]) / zoom, -pos_y / zoom))
+            print(fixed_point1, fixed_point2, "fixed")
+            mouse_point = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]), complex((mouse.pos().x() - self.center[0] - pos_x) / self.display_params["zoom"],
+                                  (mouse.pos().y() - self.center[1] - pos_y) / self.display_params["zoom"]))
+            if self.fixed_points["fp1"] is not None:
+                T = mobius.three_point_sl2(self.fixed_points["fp1"], self.fixed_points["mouse"], self.fixed_points["fp2"],
                                            fixed_point1, mouse_point, fixed_point2)
-                self.uecp.packing_trans[0] = self.uecp.packing_trans[0].dot(T)
+                self.mobius_history["changing"] = self.mobius_history["changing"].dot(T)
+                self.uecp.packing_trans[0] = self.mobius_history["current"].dot(self.mobius_history["changing"])
 
-            self.last_fixed_points["fp1"] = fixed_point1
-            self.last_fixed_points["fp2"] = fixed_point2
-            self.last_fixed_points["mouse"] = mouse_point
+            self.fixed_points["fp1"] = fixed_point1
+            self.fixed_points["fp2"] = fixed_point2
+            self.fixed_points["mouse"] = mouse_point
+        elif self.fixed_points["fp1_move"]:
+            self.fixed_points["fixed_point1"] = complex((mouse.pos().x() - self.center[0]), (mouse.pos().y() - self.center[1]))
+            # print(self.fixed_points["fixed_point1"])
+        elif self.fixed_points["fp2_move"]:
+            self.fixed_points["fixed_point2"] = complex((mouse.pos().x() - self.center[0]), (mouse.pos().y() - self.center[1]))
         else:
             # move packing around with cursor
             self.display_params["pos"][0] = self.display_params["start_pos"][0] + mouse.pos().x()

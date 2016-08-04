@@ -69,3 +69,7 @@ def three_point_sl2(p1, p2, p3, q1, q2, q3):
                                 (p3 * q3, p3, 1))))
 
     return make_sl2([[a, b], [c, d]])
+
+
+def transform_point(T, p):
+    return (T[0][0]*p + T[0][1]) / (T[1][0]*p + T[1][1])
