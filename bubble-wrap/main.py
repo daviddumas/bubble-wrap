@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-__version__ = "0.2.1 (pre-alpha)"
+__version__ = "0.2.5 (pre-alpha)"
 
 import sys
 
@@ -49,29 +49,6 @@ class Form(QMainWindow):
 
         self.draw_trigger.connect(self.mainWidget.graphics.draw)
 
-    def openNew(self):
-        openPacking(self, self.mainWidget, lambda: self.mainWidget.graphics.draw())
-
-    def createNew(self):
-        uecp = self.mainWidget.uecp
-        surfaces = ("Cylinder", "Torus", "Genus 2 Surface")
-        surface_selected = tools.showDropdownDialog(self, surfaces, "Select a surface to create")
-        print("Surface selected: %s" % surfaces[surface_selected])
-
-        uecp.reset_data()
-
-        # create the selected DCEL surface
-        if surface_selected == 0:
-            uecp.opened_dcel = cylinder_of_revolution(10, 10, rad=1, height=2)
-        elif surface_selected == 1:
-            uecp.opened_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
-
-        elif surface_selected == 2:
-            print("Currently unable to create a Genus 2 surface yet.")
-
-
-        self.mainWidget.graphics.draw()
-
     def setup_actions(self):
         """
         Setup `File` actions
@@ -99,15 +76,31 @@ class Form(QMainWindow):
         file_menu.addAction(openAction)
         file_menu.addAction(exitAction)
 
-    def resizeEvent(self, QResizeEvent):
-        print("width %d, height %d" % (self.width(), self.height()))
+    # >>> Action Methods <<<
+
+    def openNew(self):
+        openPacking(self, self.mainWidget, lambda: self.mainWidget.graphics.draw())
+
+    def createNew(self):
+        uecp = self.mainWidget.uecp
+        surfaces = ("Cylinder", "Torus", "Genus 2 Surface")
+        surface_selected = tools.showDropdownDialog(self, surfaces, "Select a surface to create")
+        print("Surface selected: %s" % surfaces[surface_selected])
+
+        uecp.reset_data()
+
+        # create the selected DCEL surface
+        if surface_selected == 0:
+            uecp.opened_dcel = cylinder_of_revolution(10, 10, rad=1, height=2)
+        elif surface_selected == 1:
+            uecp.opened_dcel = circular_torus_of_revolution(10, 10, rmaj=1, rmin=0.5)
+        elif surface_selected == 2:
+            print("Currently unable to create a Genus 2 surface yet.")
+
+        self.mainWidget.graphics.draw()
 
 
 if __name__ == '__main__':
-    s_point = np.array((1, 2, 3))  # original location
-    s_point.shape = (3, 1)
-    print(s_point)
-
     # This is the minimum needed to show the Window
     app = QApplication(sys.argv)
     w = Form()

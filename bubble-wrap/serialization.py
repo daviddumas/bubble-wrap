@@ -131,6 +131,10 @@ def storefn(fn,D,edge_lists=None,packings=None,meta=None):
     vectors may also be stored.
 
     """
+    directory = os.path.dirname(fn)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     with open(fn,'rt',encoding='utf-8') as fp:
         return json.dump(serialization_object(D,edge_lists=edge_lists,packings=packings,meta=meta),fp,cls=CPPSEncoder)
 
@@ -141,6 +145,10 @@ def zstorefn(fn,D,edge_lists=None,packings=None,meta=None,force_compression=Fals
     applied only if the file extension matches CPZ case-insensitively.
 
     """
+    directory = os.path.dirname(fn)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     fn_base, fn_ext = os.path.splitext(fn)
     if clobber:
         mode = 'wt'

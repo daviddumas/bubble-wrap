@@ -3,15 +3,15 @@ tools.py
 """
 
 import datetime
-
+import mobius
 import numpy as np
+
 from PyQt5 import uic
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-import mobius
-from canvas3d import circular_torus_of_revolution
+
 
 
 # >>> UI Helpers <<<
@@ -46,7 +46,6 @@ def showListDialog(parent, ordered_dictionary, title):
     dialog.exec_()
     return response[0]
 
-
 def showDropdownDialog(parent, items, title):
     """
     Show a dropdown Dialog to select some item
@@ -55,8 +54,6 @@ def showDropdownDialog(parent, items, title):
     :param title: window title
     :return:
     """
-
-
     response = [-1]
 
     dialog = QDialog(parent)
@@ -129,8 +126,10 @@ def showProgressDialog(parent, progress_data, title="Loading..."):
 
     dialog.exec_()
 
-
 class UnifiedEmbeddedCirclePacking:
+    """
+    Used to hold all the circle packing data for easy access between classes
+    """
     def __init__(self):
         self.opened_metadata = {}
         self.opened_dcel = None
@@ -193,7 +192,7 @@ class OptimizeCirclesThread(QThread):
                 dgraphcount += 1
 
             if not cir.contains_infinity and np.abs(zoom * cir.radius) > 1:
-                # margin_threshold (change this parameter to allow more/less circles to be included off frame)
+                # mt: margin_threshold (change this parameter to allow more/less circles to be included off frame)
                 mt = 50
 
                 lc = center[0] + offset[0] + zoom * (cir.center.real - cir.radius)

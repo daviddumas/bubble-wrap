@@ -135,6 +135,7 @@ class GLWidget(QGLWidget):
         except(Exception):
             print("zoomed in too much!!")
 
+
 class CirclePackingView(QWidget):
     draw_trigger = pyqtSignal()
 
@@ -186,11 +187,6 @@ class CirclePackingView(QWidget):
 
         qp.fillRect(QRect(0, 0, self.width, self.height), QColor(250, 250, 250, 255))
 
-        d = self.delegate
-
-        zoom = self.display_params["zoom"]
-        offset = self.display_params["pos"].copy()
-
         # Detect if circle packing optimization is needed
         sameT = False
         try:
@@ -211,14 +207,16 @@ class CirclePackingView(QWidget):
 
             # begin new optimization thread
             self.optimize_thread = tools.OptimizeCirclesThread(self, self.uecp.circles, self.uecp.circles_optimize, self.uecp.packing_trans[0], self.display_params)
-            self.optimize_thread.start(priority=QThread.LowPriority)
+            self.optimize_thread.start(priority=QThread.LowestPriority)
 
             # reset (dual graph)
             self.v_to_c = None
 
-        # >>> ALL Circles beyond this point are optimized <<<
+        # >>>                                             <<<
+        # >>> ALL circles beyond this point are optimized <<<
+        # >>>                                             <<<
 
-        # transform circles
+        # transform circles only if there is a transformation change
         T = mobius.make_sl2(self.uecp.packing_trans[0])
         if not sameT or len(self.m_circles) != len(self.uecp.circles_optimize[0]):
             self.m_circles = []
@@ -227,21 +225,26 @@ class CirclePackingView(QWidget):
                 self.m_circles.append((ci[0].transform_sl2(T), ci[1], ci[2]))
             self.lT = self.uecp.packing_trans.copy()
 
-        # print off valence info
-        if self.uecp.opened_dcel is not None:
-            self.infoPanel.clearInfo()
-            valences = get_valence_dict(self.uecp.opened_dcel.V)
-            for k in valences:
-                self.infoPanel.addInfo("Valence %s" % k, "%s vertices" % valences[k])
-        else:
-            self.infoPanel.clearInfo()
-            self.infoPanel.addInfo("Status", "no packing visible")
+        # draw the circles
+        self.drawCircles(qp)
+
+        # draw dual graph
+        self.drawDualGraph(qp)
+
+        # Update widget positions and draw them
+        self.drawWidgets(qp)
+
+        qp.end()
+
+    def drawCircles(self, qp):
+        zoom = self.display_params["zoom"]
+        offset = self.display_params["pos"].copy()
 
         for c in self.m_circles:
             cir = c[0]
             v = c[1]
+            # only draw circles with radius > 1
             if not cir.contains_infinity and np.abs(zoom * cir.radius) > 1:
-                # add ellipses to an array for optimization
                 if v.valence > 6:
                     qp.setPen(Qt.red)
                     if cir.radius > 0:
@@ -255,7 +258,7 @@ class CirclePackingView(QWidget):
                                self.center[1] + offset[1] + zoom * (cir.center.imag - cir.radius),
                                zoom * (cir.radius * 2), zoom * (cir.radius * 2))
             elif cir.contains_infinity:
-                # creates a straight line
+                # create a straight line
                 x = self.center[0] + offset[0] + cir.line_base.real
                 y = self.center[1] + offset[1] + cir.line_base.imag
                 size = 3 * sqrt((offset[0] + cir.line_base.real) ** 2 + (offset[1] + cir.line_base.imag) ** 2)
@@ -268,7 +271,10 @@ class CirclePackingView(QWidget):
                 print(cir.line_base, cir.line_angle)
             qp.setBrush(QColor(0, 0, 0, 0))
 
-        # draw dual graph
+    def drawDualGraph(self, qp):
+        zoom = self.display_params["zoom"]
+        offset = self.display_params["pos"].copy()
+
         v_to_v_drawn = []
         if self.uecp.dual_graph and self.uecp.opened_dcel is not None:
             if self.v_to_c is None:
@@ -285,34 +291,23 @@ class CirclePackingView(QWidget):
                 else:
                     cir2 = None
 
-                if cir2 is not None and not cir.contains_infinity and not cir2.contains_infinity and (v, v2) not in v_to_v_drawn and (v2, v) not in v_to_v_drawn:
+                if cir2 is not None and not cir.contains_infinity and not cir2.contains_infinity and (
+                v, v2) not in v_to_v_drawn and (v2, v) not in v_to_v_drawn:
                     v_to_v_drawn.append((v, v2))
                     draw_dual_graph_seg(cir, cir2, zoom, offset, self.center, qp, self.mp)
 
-        # Update widget positions and draw them
-        self.drawWidgets(qp)
-
-        # draw progress wheel
-        if self.uecp.progressValue[0] < 100:
-            pen = QPen(QColor(0, 191, 255))
-            pen.setWidth(3)
-            qp.setPen(pen)
-            qp.drawArc(QRect(self.width - 30, self.height - 30, 20, 20),
-                       90 * 16, -int(self.uecp.progressValue[0] * 3.6 * 16))
-            qp.setPen(Qt.black)
-
-        # Fixed pointss
-        if self.uecp.mobius_trans_mode:
-            qp.setPen(Qt.darkGreen)
-            qp.setBrush(Qt.green)
-            qp.drawEllipse(self.center[0] + (self.fixed_points["fixed_point1"].real-5),  self.center[1] + (self.fixed_points["fixed_point1"].imag-5), 10, 10)
-            qp.drawEllipse(self.center[0] + (self.fixed_points["fixed_point2"].real-5), self.center[1] + (self.fixed_points["fixed_point2"].imag-5), 10, 10)
-
-        qp.end()
-
     def drawWidgets(self, qp):
-        # Update widget positions and draw them
+        # update valence info
+        if self.uecp.opened_dcel is not None:
+            self.infoPanel.clearInfo()
+            valences = valence_dict(self.uecp.opened_dcel.V)
+            for k in valences:
+                self.infoPanel.addInfo("Valence %s" % k, "%s vertices" % valences[k])
+        else:
+            self.infoPanel.clearInfo()
+            self.infoPanel.addInfo("Status", "no packing visible")
 
+        # Update widget positions and draw them
         self.izoom.setPos(self.width - 55, 30)
         self.izoom.draw(qp)
         self.ozoom.setPos(self.width - 55, 55)
@@ -329,6 +324,25 @@ class CirclePackingView(QWidget):
 
         self.infoPanel.setPos(0, self.height - self.infoPanel.height)
         self.infoPanel.draw(qp)
+
+        # draw progress circle
+        if self.uecp.progressValue[0] < 100:
+            pen = QPen(QColor(0, 191, 255))
+            pen.setWidth(3)
+            qp.setPen(pen)
+            qp.drawArc(QRect(self.width - 30, self.height - 30, 20, 20),
+                       90 * 16, -int(self.uecp.progressValue[0] * 3.6 * 16))
+            qp.setPen(Qt.black)
+
+        # Draw Fixed points
+        if self.uecp.mobius_trans_mode:
+            fpr = 5  # fixed point radius
+            qp.setPen(Qt.darkGreen)
+            qp.setBrush(Qt.green)
+            qp.drawEllipse(self.center[0] + (self.fixed_points["fixed_point1"].real - fpr),
+                           self.center[1] + (self.fixed_points["fixed_point1"].imag - fpr), 10, 10)
+            qp.drawEllipse(self.center[0] + (self.fixed_points["fixed_point2"].real - fpr),
+                           self.center[1] + (self.fixed_points["fixed_point2"].imag - fpr), 10, 10)
 
     def mouseReleaseEvent(self, QMouseEvent):
         # release button presses
@@ -488,36 +502,15 @@ def parse_circles(circles):
     return v_to_c
 
 def draw_dual_graph_seg(cir, cir2, zoom, offset, center, qp, mp):
-    # TODO: fix/finish
     if (cir.center.real - cir2.center.real) ** 2 + (cir.center.imag - cir2.center.imag) ** 2 <= (cir.radius + cir2.radius + 0.01) ** 2:
 
         ax, ay, bx, by, mx, my = center[0] + offset[0] + zoom * cir.center.real, center[1] + offset[1] + zoom * cir.center.imag, \
                                  center[0] + offset[0] + zoom * cir2.center.real, center[1] + offset[1] + zoom * cir2.center.imag, mp[0] + center[0], mp[1] + \
                                  center[1]
-
-        # bias = 10
         qp.setPen(Qt.blue)
-        # if (ax + bias > mx > bx - bias or ax - bias < mx < bx + bias) and (
-        #                         ay + bias > my > by - bias or ay - bias < my < by + bias):
-        #     d1 = ax - bx, ay - by
-        #     d2 = ax - mx, ay - my
-        #     a1 = math.atan2(d1[1], d1[0])
-        #     a2 = math.atan2(d2[1], d2[0])
-        #     da = abs(a1 - a2)
-        #     dist = math.sin(da) * sqrt(d2[0] ** 2 + d2[1] ** 2)
-        #     if dist < bias and dist < red_dist[0]:
-        #         if red_dist[1] is not None:
-        #             rax, ray, rbx, rby = self.center[0] + 200 * red_dist[1].center.real, self.center[
-        #                 1] + 200 * red_dist[1].center.imag, \
-        #                                  self.center[0] + 200 * red_dist[2].center.real, self.center[
-        #                                      1] + 200 * red_dist[2].center.imag
-        #             qp.drawLine(rax, ray, rbx, rby)
-        #         red_dist = [dist, cir, cir2]
-        #         qp.setPen(Qt.red)
-
         qp.drawLine(ax, ay, bx, by)
 
-def get_valence_dict(verts):
+def valence_dict(verts):
     """
     Finds the valences of the vertices supplied
     :param verts:

@@ -1,6 +1,6 @@
 import math
-from collections import OrderedDict
 
+from collections import OrderedDict
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
@@ -58,7 +58,6 @@ class BaseWidget:
     def release(self):
         self.hit = False
 
-
 class TranslateWidget(BaseWidget):
     NO_HIT = 0
     RIGHT = 1
@@ -107,7 +106,6 @@ class TranslateWidget(BaseWidget):
     def release(self):
         self.current_act = 0
 
-
 class CenterWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
         super().__init__("ui/assets/center_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/center_act.png")
@@ -119,7 +117,6 @@ class MobiusResetWidget(BaseWidget):
 class PlusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
         super().__init__("ui/assets/plus_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/plus_act.png")
-
 
 class MinusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):

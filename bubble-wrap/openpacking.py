@@ -27,8 +27,11 @@ def openPacking(parent, delegate, ondone):
         return
     print(len(file[0]))
     print("Open a new file: %s" % str(file[0]))
-
-    meta, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
+    try:
+        meta, D, chains, P = ser.zloadfn(file[0], cls=cocycles.InterstitialDCEL)
+    except(Exception):
+        print("Unable to open file.  Is the file a *.cpz?")
+        return
 
     odict = ordered_packing_list(P)
 
@@ -326,11 +329,6 @@ class FindWordsThread(QThread):
                 # reflect progress on progress bar
                         self.uecp.progressValue[0] = int((i + 1) / len(self.vchains) * 100)
                 self.parent().draw_trigger.emit()
-
-        # normalize the circle packing to the viewport
-        # mob_zoom = mobius.make_sl2(((10, 0), (0, 0.1)))
-        # for cir in self.uecp.circles:
-        #     cir[0] = cir[0].transform_sl2(mob_zoom)
 
         # Force update will require the UI to optimize the circle packing for snappy interaction
         self.delegate.graphics.force_update()
