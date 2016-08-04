@@ -448,6 +448,8 @@ class CirclePackingView(QWidget):
                 self.setToolTip("toggle dual graph")
             elif self.mobiusTog.isHit(event):
                 self.setToolTip("toggle möbius transform mode")
+            elif self.mobius_reset.isHit(event):
+                self.setToolTip("reset möbius transform")
             else:
                 self.setToolTip("")
 
