@@ -18,13 +18,12 @@ from widgets import *
 class GLWidget(QGLWidget):
 
     def __init__(self, delegate):
+        super(GLWidget, self).__init__(QGLFormat(QGL.SampleBuffers), None)
 
-        formats = QGLFormat.defaultFormat()
-        formats.setSampleBuffers(True)
-        formats.setSamples(8)
-        QGLFormat.setDefaultFormat(formats)
+        self.v_to_c = None
 
-        QGLWidget.__init__(self, None)
+        self.display_params = {"zoom": 100, "pos": [0, 0], "start_pos": [0, 0]}
+
         self.mouse_pos = [-1e5, -1e5, -1e5, -1e5]
         self.rX = 45
         self.rY = 0
@@ -36,38 +35,76 @@ class GLWidget(QGLWidget):
         self.zoom = 45
         self.delegate = delegate
 
+        self.setAutoFillBackground(False)
+
+        self.pure_dual_graph = False
+
+        self.recenter = CenterWidget()
+        self.izoom = PlusWidget()
+        self.ozoom = MinusWidget()
+        self.dgraphTog = DualGraphToggleWidget()
+
         # set unified embedded circle packing holder
         self.uecp = self.delegate.uecp
 
-    def paintGL(self):
+    def paintEvent(self, event):
+        self.makeCurrent()
+
+        GL.glMatrixMode(GL.GL_MODELVIEW)
+        GL.glPushMatrix()
+
+        self.qglClearColor(QColor(230, 230, 230, 255))
+
+        GL.glShadeModel(GL.GL_SMOOTH)
+        GL.glEnable(GL.GL_MULTISAMPLE)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+
+        self.setupViewport(self.width, self.height)
 
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glLoadIdentity()
-
         GL.glTranslatef(0, 0, -6)
         GL.glRotate(self.rX, 1, 0, 0)
         GL.glRotate(self.rY, 0, 1, 0)
         GL.glRotate(self.rZ, 0, 0, 1)
 
-        if self.uecp.opened_metadata is not None and float(self.uecp.opened_metadata["schema_version"]) >= 0.2:
+        if not self.pure_dual_graph and self.uecp.opened_metadata is not None and float(self.uecp.opened_metadata["schema_version"]) >= 0.2:
             if self.uecp.opened_dcel is not None:
                 try:
-                    GL.glColor4f(0.0, 0.0, 0.0, 0.2)
+                    #GL.glColor4f(0.0, 0.0, 0.0, 0.2)
+                    self.qglColor(QColor(0,0,0, 50))
 
                     GL.glPolygonMode(GL.GL_FRONT, GL.GL_FILL)
                     GL.glPolygonMode(GL.GL_BACK, GL.GL_LINE)
                     self.draw_shape(self.uecp.opened_dcel)
 
-                    GL.glColor4f(0.0, 0.0, 0.0, 1)
+                    #GL.glColor4f(0.0, 0.0, 0.0, 1)
+                    self.qglColor(QColor(0,0,0, 255))
 
                     GL.glPolygonMode(GL.GL_FRONT, GL.GL_LINE)
 
                     self.draw_shape(self.uecp.opened_dcel)
                 except(Exception):
                     pass # print(self.delegate.opened_dcel)
-        else:
+        elif not self.pure_dual_graph:
             print("Unable to display shape because there is no correct embedding in the opened file")
 
+
+        GL.glPolygonMode(GL.GL_FRONT, GL.GL_FILL)
+        GL.glPolygonMode(GL.GL_BACK, GL.GL_FILL)
+
+        GL.glMatrixMode(GL.GL_MODELVIEW)
+        GL.glPopMatrix()
+
+        qp = QPainter(self)
+        qp.setRenderHint(QPainter.Antialiasing)
+
+        qp.save()
+        if self.pure_dual_graph:
+            self.drawDualGraph(qp)
+        self.drawWidgets(qp)
+        qp.restore()
         GL.glFlush()
 
     def draw_shape(self, D):
@@ -80,61 +117,141 @@ class GLWidget(QGLWidget):
                 GL.glVertex3f(e_n.src.coordinates[0], e_n.src.coordinates[1], e_n.src.coordinates[2])
                 e_n = e_n.next
         GL.glEnd()
+        # needed for qpainter to draw dual graph correctly
+        GL.glBegin(GL.GL_QUADS)
+        GL.glEnd()
 
-    def wheelEvent(self, event):
-        wheel_point = event.angleDelta()/60
-        self.zoom += wheel_point.y()
-        self.fix_size()
-        self.repaint()
+    def resizeGL(self, width, height):
+        self.setupViewport(width, height)
 
-    def mousePressEvent(self, mouse):
-        self.mouse_pos[0:1] = mouse.pos().x(),mouse.pos().y()
-        self.btn = mouse.button()
-
-    def mouseMoveEvent(self, mouse):
-        self.mouse_pos[2:3] = mouse.pos().x(), mouse.pos().y()
-        if self.btn == Qt.LeftButton:
-            self.rX = self.diff[0] + self.mouse_pos[3] - self.mouse_pos[1]
-            self.rY = self.diff[1] + self.mouse_pos[2] - self.mouse_pos[0]
-        elif self.btn == Qt.RightButton:
-            self.rZ = self.diff[2] + self.mouse_pos[2] - self.mouse_pos[0] - self.mouse_pos[3] + self.mouse_pos[1]
-
-        self.repaint()
-
-    def mouseReleaseEvent(self, mouse):
-        self.diff = (self.rX, self.rY, self.rZ)
-        self.mouse_pos = self.mouse_pos = [-1e5, -1e5, -1e5, -1e5]
-
-    def initializeGL(self):
-
-        GL.glClearDepth(1.0)
-        GL.glDepthFunc(GL.GL_LESS)
-        GL.glEnable(GL.GL_MULTISAMPLE)
-        GL.glShadeModel(GL.GL_SMOOTH)
-        GL.glEnable(GL.GL_BLEND)
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-        GL.glClearColor(0.9, 0.9, 0.9, 1.0)
-
-        self.fix_size()
-
-    def resizeGL(self, p_int, p_int_1):
-        self.fix_size()
-
-    def fix_size(self):
-        side = min(self.width(), self.height())
-        # GL.glViewport((self.width() - side) // 2, (self.height() - side) // 2, side, side)
-        GL.glViewport(0, 0, self.width(), self.height())
+    def setupViewport(self, width, height):
+        GL.glViewport(0, 0, width, height)
 
         # fixes aspect and size of viewport when viewport is resized
         GL.glMatrixMode(GL.GL_PROJECTION)
         GL.glLoadIdentity()
-        aspect = self.width() / self.height()  # if platform.system() == 'Darwin' else (self.width() / self.height())
+        aspect = self.width / self.height
         gluPerspective(self.zoom, aspect, 0.1, 100.0)
         try:
             GL.glMatrixMode(GL.GL_MODELVIEW)
         except(Exception):
             print("zoomed in too much!!")
 
+    def drawDualGraph(self, qp):
+        zoom = self.display_params["zoom"]
+        offset = self.display_params["pos"]
+
+        v_to_v_drawn = []
+        if self.uecp.opened_dcel is not None:
+            if self.v_to_c is None:
+                self.v_to_c = parse_circles(self.uecp.pure_dual_graph_circles)
+            for edg in self.uecp.opened_dcel.UE:
+                v = edg.src
+                v2 = edg.next.src
+
+                if v not in self.v_to_c:
+                    continue
+                cir = self.v_to_c[v]
+                if v2 in self.v_to_c:
+                    cir2 = self.v_to_c[v2]
+                else:
+                    cir2 = None
+
+                if cir2 is not None and not cir.contains_infinity and not cir2.contains_infinity and (
+                v, v2) not in v_to_v_drawn and (v2, v) not in v_to_v_drawn:
+                    v_to_v_drawn.append((v, v2))
+                    draw_dual_graph_seg(cir, cir2, zoom, offset, self.center, qp, (0, 0))
+
+    def drawWidgets(self, qp):
+        # Update widget positions and draw them
+        if self.pure_dual_graph:
+            self.izoom.setPos(self.width - 55, 30)
+            self.izoom.draw(qp)
+            self.ozoom.setPos(self.width - 55, 55)
+            self.ozoom.draw(qp)
+            self.recenter.setPos(self.width - 55, 80)
+            self.recenter.draw(qp)
+
+        self.dgraphTog.setPos(self.width - 55, self.height - 55)
+        self.dgraphTog.draw(qp)
+
+    def mousePressEvent(self, mouse):
+        if not self.pure_dual_graph:
+            self.mouse_pos[0:1] = mouse.pos().x(), mouse.pos().y()
+            self.btn = mouse.button()
+        else:
+            d = self.delegate
+            pos_x = self.display_params["pos"][0]
+            pos_y = self.display_params["pos"][1]
+            zoom = self.display_params["zoom"]
+
+            self.display_params["start_pos"] = [pos_x - mouse.pos().x(), pos_y - mouse.pos().y()]
+
+            if self.izoom.isHit(mouse):
+                # zoom in
+                # keeps circle packing centered when zooming
+                d.calculations.animate_attributes(self.display_params,
+                    {"zoom":zoom * 1.5, "pos":[pos_x * 1.5, pos_y * 1.5]})
+            elif self.ozoom.isHit(mouse):
+                # zoom out
+                # keeps circle packing centered when zooming
+                d.calculations.animate_attributes(self.display_params,
+                    {"zoom": zoom / 1.5, "pos": [pos_x / 1.5, pos_y / 1.5]})
+            elif self.recenter.isHit(mouse):
+                # reset/recenter view
+                d.calculations.animate_attributes(self.display_params, {"zoom": 100, "pos": [0, 0]})
+
+        self.pure_dual_graph = self.dgraphTog.isActive(mouse)
+        self.repaint()
+
+    def mouseReleaseEvent(self, mouse):
+        if not self.pure_dual_graph:
+            self.diff = (self.rX, self.rY, self.rZ)
+        else:
+            # release button presses
+            self.izoom.release()
+            self.ozoom.release()
+            self.recenter.release()
+
+        self.repaint()
+
+    def mouseMoveEvent(self, mouse):
+        if not self.pure_dual_graph:
+            self.mouse_pos[2:3] = mouse.pos().x(), mouse.pos().y()
+            if self.btn == Qt.LeftButton:
+                self.rX = self.diff[0] + self.mouse_pos[3] - self.mouse_pos[1]
+                self.rY = self.diff[1] + self.mouse_pos[2] - self.mouse_pos[0]
+            elif self.btn == Qt.RightButton:
+                self.rZ = self.diff[2] + self.mouse_pos[2] - self.mouse_pos[0] - self.mouse_pos[3] + self.mouse_pos[1]
+        else:
+            self.display_params["pos"][0] = self.display_params["start_pos"][0] + mouse.pos().x()
+            self.display_params["pos"][1] = self.display_params["start_pos"][1] + mouse.pos().y()
+        self.repaint()
+
+    def wheelEvent(self, event):
+        wheel_point = event.angleDelta()/60
+        if not self.pure_dual_graph:
+            self.zoom += wheel_point.y()
+        else:
+
+            self.display_params["zoom"] *= 1.2**wheel_point.y()
+            # keeps circle packing centered when zooming
+            self.display_params["pos"][0] *= 1.2**wheel_point.y()
+            self.display_params["pos"][1] *= 1.2**wheel_point.y()
+
+        self.repaint()
+
+    @property
+    def width(self):
+        return self.frameSize().width()
+
+    @property
+    def height(self):
+        return self.frameSize().height()
+
+    @property
+    def center(self):
+        return self.width / 2, self.height / 2
 
 class CirclePackingView(QWidget):
     draw_trigger = pyqtSignal()
@@ -185,7 +302,7 @@ class CirclePackingView(QWidget):
         qp = QPainter(self)
         qp.setRenderHint(QPainter.Antialiasing)
 
-        qp.fillRect(QRect(0, 0, self.width, self.height), QColor(250, 250, 250, 255))
+        qp.fillRect(QRect(0, 0, self.width, self.height), QColor(230, 230, 230, 255))
 
         # Detect if circle packing optimization is needed
         sameT = False
@@ -486,7 +603,6 @@ class CirclePackingView(QWidget):
     @property
     def center(self):
         return self.width / 2, self.height / 2
-
 
 def parse_circles(circles):
     """

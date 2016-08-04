@@ -85,7 +85,6 @@ def standardModelFromDict(parent, items):
 
     for k in items:
         item = QStandardItem(k)
-        print(item.text())
         model.appendRow(item)
     return model
 
@@ -133,6 +132,7 @@ class UnifiedEmbeddedCirclePacking:
     def __init__(self):
         self.opened_metadata = {}
         self.opened_dcel = None
+        self.pure_dual_graph_circles = []
         self.circles = []
         self.circles_optimize = [[]]
         self.all_packings = None

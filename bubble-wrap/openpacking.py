@@ -46,9 +46,37 @@ def openPacking(parent, delegate, ondone):
     uecp.all_packings = P
     uecp.chains = chains
 
+    find_simplest_packing_for_pure_dual_graph(delegate, odict)
+
     from_select_packing(parent, delegate, mkey, ondone)
 
+def find_simplest_packing_for_pure_dual_graph(delegate, odict):
+    uecp = delegate.uecp
+    closest_xratio = None
+    closest_id = None
+    for key in odict:
+        xratio2_sum = 0
+        for xratio in list(odict[key]):
+            xratio2_sum += (xratio-1.7320508)**2
+        xratio2_avg = xratio2_sum / len(list(odict[key]))
+        if closest_xratio is None or closest_xratio > xratio2_avg:
+            closest_xratio = xratio2_avg
+            closest_id = key
 
+    # start building fundamental domain
+    X0 = odict[closest_id]
+
+    # SOLVE
+    if dcel.oriented_manifold_type(uecp.opened_dcel)['genus'] == 2:
+        # genus 2
+        pure_fund_domain_genus2(delegate, uecp.opened_dcel, uecp.chains, X0)
+    elif dcel.oriented_manifold_type(uecp.opened_dcel)['genus'] == 1:
+        # genus 1 (torus)
+        pure_fund_domain_genus1(delegate, uecp.opened_dcel, uecp.chains, X0)
+
+    #print(closest_id, closest_xratio, X0)
+
+    pass
 
 def from_select_packing(parent, delegate, mkey, ondone):
     # set unified embedded circle packing holder
@@ -86,6 +114,9 @@ def ordered_packing_list(P):
         odict = OrderedDict.fromkeys(sorted(P, key=lambda x: float(x)))
     except(Exception):
         odict = OrderedDict.fromkeys(sorted(P))
+
+    for key in odict:
+        odict[key] = list(P[key])
     return odict
 
 def open_genus2(parent, delegate, D, chains, X0, ondone, words=None):
@@ -213,11 +244,148 @@ def open_genus1(parent, delegate, D, chains, X0, ondone, words=None):
             vert_seen.add(ch[-1].src)
             vchains.add(ch)
 
-    findwords = FindWordsThread(parent, delegate, vchains, D, X0, Rho, mob_zoom, char_list="aAbB")
+    findwords = FindWordsThread(parent, delegate, vchains, D, X0, Rho, ident, char_list="aAbB")
     findwords.start()
 
     ondone()
 
+def pure_fund_domain_genus2(delegate, D, chains, X0):
+    """
+    Find a circle packing for a genus 2 surface
+    :param parent:
+    :param D:
+    :param chains:
+    :param X0:
+    :param ondone:
+    :param words:
+    :return:
+    """
+    rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'a2', 'b1', 'b2']}
+
+    def commutator(a, b):
+        return a.dot(b).dot(mobius.sl2inv(a)).dot(mobius.sl2inv(b))
+
+    def conjugate(inner, outer):
+        return mobius.sl2inv(outer).dot(inner).dot(outer)
+
+    rho = {'a1': rho0['a1'],
+           'b1': rho0['b1'],
+           'a2': conjugate(rho0['a2'], rho0['b2']),
+           'b2': rho0['b2']}
+
+    print("RHO:", rho0['a1'])
+
+    print('This should be the identity matrix:')
+    print(commutator(rho['a1'], rho['b1']).dot(commutator(rho['a2'], rho['b2'])))
+
+    from collections import defaultdict
+    verts_of_valence = defaultdict(int)
+    for v in D.V:
+        verts_of_valence[v.valence] += 1
+    for k in verts_of_valence:
+        print(verts_of_valence[k], 'vertices of valence', k)
+
+    recip = np.array([[0, 1j], [1j, 0]])
+    fc = mobius.fix(commutator(rho['a1'], rho['b1']))
+    fa1 = mobius.fix(rho['a1'])
+    fa2 = mobius.fix(rho['a2'])
+    mnormKAT = mobius.center_four_points(fc[0], fa1[0], fc[1], fa2[0])
+    mnormKAT = recip.dot(mnormKAT)
+
+    import fgrep as fgrep
+    Rho = fgrep.FreeGroup({'a': rho['a1'], 'b': rho['b1'], 'c': rho['a2'], 'd': rho['b2'],
+                           'k': commutator(rho['a1'], rho['b1'])}, inverter=mobius.sl2inv)
+
+    print('Computing circle positions...')
+
+    echains = dcel.edge_chain_dfs(D, chains['t1'][0])
+    vchains = set()
+    vert_seen = set()
+    for ch in echains:
+        if ch[-1].src not in vert_seen:
+            vert_seen.add(ch[-1].src)
+            vchains.add(ch)
+
+    uecp = delegate.uecp
+    c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
+    uecp.pure_dual_graph_circles = []
+
+    for ch in vchains:
+        h = D.hol(ch, X0)
+        c1 = c0.transform_gl2(h).transform_sl2(mnormKAT)
+        v0 = ch[-1].src
+        uecp.pure_dual_graph_circles.append([c1, v0, True])
+
+def pure_fund_domain_genus1(delegate, D, chains, X0):
+    """
+    Find a circle packing for a genus 1 surface (torus)
+    :param parent:
+    :param D:
+    :param chains:
+    :param X0:
+    :param ondone:
+    :param words:
+    :return:
+    """
+
+    rho0 = {k: D.hol(chains[k], X0) for k in ['a1', 'b1']}
+
+    def commutator(a, b):
+        return a.dot(b).dot(mobius.sl2inv(a)).dot(mobius.sl2inv(b))
+
+    def conjugate(inner, outer):
+        return mobius.sl2inv(outer).dot(inner).dot(outer)
+
+    rho = {'a1': rho0['a1'],
+           'b1': rho0['b1']}
+
+    print("RHO:", rho0['a1'])
+
+    print('This should be the identity matrix:')
+    print(commutator(rho['a1'], rho['b1']))
+
+    from collections import defaultdict
+    verts_of_valence = defaultdict(int)
+    for v in D.V:
+        verts_of_valence[v.valence] += 1
+    for k in verts_of_valence:
+        print(verts_of_valence[k], 'vertices of valence', k)
+
+    # recip = np.array([[0, 1j], [1j, 0]])
+    # fc = mobius.fix(commutator(rho['a1'], rho['b1']))
+    # fa1 = mobius.fix(rho['a1'])
+    # mnormKAT = mobius.center_four_points(fc[0], fa1[0], fc[1], fa2[0])
+    # mnormKAT = recip.dot(mnormKAT)
+    mnormKAT = np.array([[1, 0], [0, 1]])
+    # normalize the circle packing to the viewport
+
+    import fgrep as fgrep
+    Rho = fgrep.FreeGroup({'a': rho['a1'], 'b': rho['b1']}, inverter=mobius.sl2inv)
+
+    print('Computing circle positions...')
+
+    # pared_wordlist = ["%s%s%s"%(a, b, c) for a in possi for b in possi for c in possi] + ["%s%s"%(a, b) for a in possi for b in possi] + ["%s"%a for a in possi]
+    # pared_wordlist = ["kK", "C", "D", "CC", "Cd", "CD", "CB"]
+
+    # print(pared_wordlist)
+
+    echains = dcel.edge_chain_dfs(D, chains['t1'][0])
+    vchains = set()
+    vert_seen = set()
+    for ch in echains:
+        if ch[-1].src not in vert_seen:
+            vert_seen.add(ch[-1].src)
+            vchains.add(ch)
+
+    uecp = delegate.uecp
+    c0 = circle.from_point_angle(0, 0)  # Real line is C0 in the "standard interstice"
+    uecp.pure_dual_graph_circles = []
+
+    for ch in vchains:
+        h = D.hol(ch, X0)
+        c1 = c0.transform_gl2(h)
+        v0 = ch[-1].src
+        uecp.pure_dual_graph_circles.append([c1, v0, True])
 
 class FindWordsThread(QThread):
     """
