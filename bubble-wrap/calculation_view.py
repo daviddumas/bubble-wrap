@@ -124,7 +124,10 @@ def solve_circle_packing_from_torus(D):
 
     chains['t1'] = [D.e1]
 
-    ser.zstorefn('output/torus/torus.cpz', D, chains, [X])
+    try:
+        ser.zstorefn('output/torus/torus.cpz', D, chains, [X])
+    except:
+        print("There was an error storing the file")
 
 
 class ControlCalculations(QObject):

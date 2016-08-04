@@ -396,13 +396,15 @@ class CirclePackingView(QWidget):
         zoom = self.display_params["zoom"]
 
         if self.uecp.mobius_trans_mode and not (self.fixed_points["fp1_move"] or self.fixed_points["fp2_move"]):
-            print("here0")
-            fixed_point1 = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]), complex((-pos_x + self.fixed_points["fixed_point1"]) / zoom, -pos_y / zoom))
-
-            fixed_point2 = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]), complex((-pos_x + self.fixed_points["fixed_point2"]) / zoom, -pos_y / zoom))
-            print(fixed_point1, fixed_point2, "fixed")
+            # Find each fixed point under the mapping of the current mobius transformation
+            fixed_point1 = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]),
+                                                  complex(-pos_x / zoom, -pos_y / zoom) + self.fixed_points["fixed_point1"] / zoom)
+            fixed_point2 = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]),
+                                                  complex(-pos_x / zoom, -pos_y / zoom) + self.fixed_points["fixed_point2"] / zoom)
             mouse_point = mobius.transform_point(mobius.sl2inv(self.mobius_history["current"]), complex((mouse.pos().x() - self.center[0] - pos_x) / self.display_params["zoom"],
                                   (mouse.pos().y() - self.center[1] - pos_y) / self.display_params["zoom"]))
+
+            # Then apply a three to three calculation
             if self.fixed_points["fp1"] is not None:
                 T = mobius.three_point_sl2(self.fixed_points["fp1"], self.fixed_points["mouse"], self.fixed_points["fp2"],
                                            fixed_point1, mouse_point, fixed_point2)

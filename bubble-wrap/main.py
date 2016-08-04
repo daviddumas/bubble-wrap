@@ -57,6 +57,9 @@ class Form(QMainWindow):
         surfaces = ("Cylinder", "Torus", "Genus 2 Surface")
         surface_selected = tools.showDropdownDialog(self, surfaces, "Select a surface to create")
         print("Surface selected: %s" % surfaces[surface_selected])
+
+        uecp.reset_data()
+
         # create the selected DCEL surface
         if surface_selected == 0:
             uecp.opened_dcel = cylinder_of_revolution(10, 10, rad=1, height=2)
@@ -66,10 +69,6 @@ class Form(QMainWindow):
         elif surface_selected == 2:
             print("Currently unable to create a Genus 2 surface yet.")
 
-        # reset circles
-        uecp.circles = []
-        uecp.circles_optimize = [[]]
-        uecp.reset_data()
 
         self.mainWidget.graphics.draw()
 
