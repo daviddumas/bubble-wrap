@@ -143,8 +143,7 @@ class GLWidget(QGLWidget):
 
         v_to_v_drawn = []
         if self.uecp.opened_dcel is not None:
-            if self.v_to_c is None:
-                self.v_to_c = parse_circles(self.uecp.pure_dual_graph_circles)
+            self.v_to_c = parse_circles(self.uecp.pure_dual_graph_circles)
             for edg in self.uecp.opened_dcel.UE:
                 v = edg.src
                 v2 = edg.next.src
