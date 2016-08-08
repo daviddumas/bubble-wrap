@@ -1,0 +1,11 @@
+This directory contains lists of words in the fundamental group of the genus two surface.
+
+The presentation used here is related to the standard one as follows:
+
+a = a1
+b = b1
+c = a2
+d = b2
+k = [a1,b1]
+
+The word lists were generated using MAGMA.
