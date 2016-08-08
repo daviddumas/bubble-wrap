@@ -1,6 +1,7 @@
 Bubble Wrap
 ===========
 
+![Quasi-Fuchsian circle packing](images/qf-packing-2016-08-08.png "Quasi-Fuchsian circle packing displayed with Bubble Wrao")
 
 Introduction
 ------------
