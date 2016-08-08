@@ -45,3 +45,9 @@ Mentors:
 
 * David Dumas
 * Ellie Dannenberg
+
+
+Maintainer
+----------
+
+David Dumas <david@dumas.io>
