@@ -11,8 +11,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-
-
+import assets
 
 # >>> UI Helpers <<<
 def showListDialog(parent, ordered_dictionary, title):
@@ -33,7 +32,7 @@ def showListDialog(parent, ordered_dictionary, title):
     response = [-1]
 
     dialog = QDialog(parent)
-    uic.loadUi("ui/list_dialog.ui", dialog)
+    uic.loadUi(assets.ui['list_dialog'], dialog)
     dialog.setWindowTitle(title)
     dialog.listView.setModel(model)
     selectModel = dialog.listView.selectionModel()
@@ -57,7 +56,7 @@ def showDropdownDialog(parent, items, title):
     response = [-1]
 
     dialog = QDialog(parent)
-    uic.loadUi("ui/dropdown_dialog.ui", dialog)
+    uic.loadUi(assets.ui['dropdown_dialog'], dialog)
     dialog.setWindowTitle(title)
 
     com = QComboBox()
@@ -119,7 +118,7 @@ def showProgressDialog(parent, progress_data, title="Loading..."):
                 self.progress_bar.value(int(frac*100))
 
     dialog = ProgressQDialog(parent)
-    uic.loadUi("ui/progress_dialog.ui", dialog)
+    uic.loadUi(assets.ui['progress_dialog'], dialog)
     dialog.setWindowTitle(title)
     dialog.progress_bar = dialog.progressBar
 

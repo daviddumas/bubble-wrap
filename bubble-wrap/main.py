@@ -15,6 +15,7 @@ from canvas3d import circular_torus_of_revolution, cylinder_of_revolution
 from graphics_view import ControlGraphics
 from openpacking import openPacking
 
+import assets
 
 class Form(QMainWindow):
     draw_trigger = pyqtSignal()
@@ -31,7 +32,7 @@ class Form(QMainWindow):
         self.mainWidget.setWindowFlags(Qt.FramelessWindowHint)
         self.mainWidget.setContentsMargins(0, 0, 0, 0)
         self.setCentralWidget(self.mainWidget)
-        uic.loadUi('ui/widget.ui', self.mainWidget)
+        uic.loadUi(assets.ui['widget'], self.mainWidget)
         # Set the title/name of the frame
         self.setWindowTitle("Bubble Wrap {}".format(__version__))
 

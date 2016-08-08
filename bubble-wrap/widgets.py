@@ -4,7 +4,8 @@ from collections import OrderedDict
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
-
+import assets
+                       
 class BaseWidget:
     def __init__(self, image_src=None, source=None, target=None, image2_src=None):
         """
@@ -66,7 +67,7 @@ class TranslateWidget(BaseWidget):
     DOWN = 4
 
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
-        super().__init__("ui/assets/dpad_norm.png", QRectF(0,0,52,52), targetQRect)
+        super().__init__(assets.image['dpad_norm'], QRectF(0,0,52,52), targetQRect)
         self.current_act = self.NO_HIT
 
     def draw(self, QPainter):
@@ -74,13 +75,13 @@ class TranslateWidget(BaseWidget):
         if self.current_act==self.NO_HIT:
             super().draw(QPainter)
         elif(self.current_act==self.RIGHT):
-            QPainter.drawImage(self.target, QImage("ui/assets/dpad_right.png"), self.source)
+            QPainter.drawImage(self.target, QImage(assets.image['dpad_right.png']), self.source)
         elif(self.current_act==self.UP):
-            QPainter.drawImage(self.target, QImage("ui/assets/dpad_up.png"), self.source)
+            QPainter.drawImage(self.target, QImage(assets.image['dpad_up']), self.source)
         elif(self.current_act==self.LEFT):
-            QPainter.drawImage(self.target, QImage("ui/assets/dpad_left.png"), self.source)
+            QPainter.drawImage(self.target, QImage(assets.image['dpad_left']), self.source)
         elif(self.current_act==self.DOWN):
-            QPainter.drawImage(self.target, QImage("ui/assets/dpad_down.png"), self.source)
+            QPainter.drawImage(self.target, QImage(assets.image['dpad_down']), self.source)
 
     def isHit(self, mouse):
         if super().isHit(mouse):
@@ -108,19 +109,19 @@ class TranslateWidget(BaseWidget):
 
 class CenterWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
-        super().__init__("ui/assets/center_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/center_act.png")
+        super().__init__(assets.image['center_norm'], QRectF(0,0,22,22), targetQRect, image2_src=assets.image['center_act'])
 
 class MobiusResetWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
-        super().__init__("ui/assets/mobius_reset_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/mobius_reset_act.png")
+        super().__init__(assets.image['mobius_reset_norm'], QRectF(0,0,22,22), targetQRect, image2_src=assets.image['mobius_reset_act'])
 
 class PlusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
-        super().__init__("ui/assets/plus_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/plus_act.png")
+        super().__init__(assets.image['plus_norm'], QRectF(0,0,22,22), targetQRect, image2_src=assets.image['plus_act'])
 
 class MinusWidget(BaseWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
-        super().__init__("ui/assets/minus_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/minus_act.png")
+        super().__init__(assets.image['minus_norm'], QRectF(0,0,22,22), targetQRect, image2_src=assets.image['minus_act'])
 
 class ToggleWidget(BaseWidget):
     def __init__(self, image_src=None, source=None, target=None, image2_src=None):
@@ -136,11 +137,11 @@ class ToggleWidget(BaseWidget):
 
 class MobiusToggleWidget(ToggleWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
-        super().__init__("ui/assets/mobius_norm.png", QRectF(0,0,32,32), targetQRect, image2_src="ui/assets/mobius_act.png")
+        super().__init__(assets.image['mobius_norm'], QRectF(0,0,32,32), targetQRect, image2_src=assets.image['mobius_act'])
 
 class DualGraphToggleWidget(ToggleWidget):
     def __init__(self, targetQRect=QRectF(0,0,0,0)):
-        super().__init__("ui/assets/dual_graph_norm.png", QRectF(0,0,22,22), targetQRect, image2_src="ui/assets/dual_graph_act.png")
+        super().__init__(assets.image['dual_graph_norm'], QRectF(0,0,22,22), targetQRect, image2_src=assets.image['dual_graph_act'])
 
 class InfoWidget(BaseWidget):
     def __init__(self):

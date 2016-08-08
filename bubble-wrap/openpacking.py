@@ -11,6 +11,7 @@ import dcel
 import serialization as ser
 from tools import *
 
+import assets
 
 def openPacking(parent, delegate, ondone):
     """
@@ -82,7 +83,7 @@ def from_select_packing(parent, delegate, mkey, ondone):
     # set unified embedded circle packing holder
     uecp = delegate.uecp
 
-    pared_wordlist = {x.strip() for x in bz2.open('data/words/g2-commgen-pared-norm50.txt.bz2', 'rt')}
+    pared_wordlist = {x.strip() for x in bz2.open(assets.wordfile, 'rt')}
 
     odict = ordered_packing_list(uecp.all_packings)
 
