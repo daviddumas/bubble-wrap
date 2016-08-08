@@ -69,3 +69,6 @@ tags
 TAGS
 \#*#
 .\#*
+
+# IntelliJ
+.idea
